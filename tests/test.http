@@ -1,0 +1,49 @@
+### Save a new snippet
+POST http://localhost:7071/api/snippets
+Content-Type: application/json
+
+{
+    "name": "test-snippet",
+    "projectId": "test-project",
+    "code": "def hello_world():\n    print('Hello, World!')"
+}
+
+### Get a snippet by name
+GET http://localhost:7071/api/snippets/test-snippet
+
+### Perform deep research on a snippet
+POST http://localhost:7071/api/snippets/test-snippet/research
+Content-Type: application/json
+
+{}
+
+### Generate code style guide for a snippet
+POST http://localhost:7071/api/snippets/test-snippet/code-style
+Content-Type: application/json
+
+{}
+
+### Test with different code snippet
+POST http://localhost:7071/api/snippets
+Content-Type: application/json
+
+{
+    "name": "complex-snippet",
+    "projectId": "test-project",
+    "code": "class Calculator:\n    def __init__(self):\n        self.result = 0\n\n    def add(self, x, y):\n        return x + y\n\n    def subtract(self, x, y):\n        return x - y\n\n    def multiply(self, x, y):\n        return x * y\n\n    def divide(self, x, y):\n        if y == 0:\n            raise ValueError('Cannot divide by zero')\n        return x / y"
+}
+
+### Get the complex snippet
+GET http://localhost:7071/api/snippets/complex-snippet
+
+### Research the complex snippet
+POST http://localhost:7071/api/snippets/complex-snippet/research
+Content-Type: application/json
+
+{}
+
+### Get code style for complex snippet
+POST http://localhost:7071/api/snippets/complex-snippet/code-style
+Content-Type: application/json
+
+{} 

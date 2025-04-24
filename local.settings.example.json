@@ -1,0 +1,13 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "DefaultEndpointsProtocol=https;AccountName=<storage-account-name>;AccountKey=<storage-account-key>;EndpointSuffix=core.windows.net",
+    "FUNCTIONS_WORKER_RUNTIME": "python",
+    "COSMOS_CONN": "AccountEndpoint=https://<cosmos-account-name>.documents.azure.com:443/;AccountKey=<cosmos-account-key>;",
+    "EMBEDDING_MODEL_DEPLOYMENT_NAME": "text-embedding-3-small",
+    "PROJECT_CONNECTION_STRING": "<region>.api.azureml.ms;<workspace-id>;<project-name>;<project-name>",
+    "PYTHON_ENABLE_WORKER_EXTENSIONS": "True", 
+    "AZURE_OPENAI_ENDPOINT": "https://<openai-resource-name>-<region>.openai.azure.com/",
+    "AZURE_OPENAI_KEY": "<openai-api-key>"
+  }
+}

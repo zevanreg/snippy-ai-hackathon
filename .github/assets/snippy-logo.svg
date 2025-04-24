@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="300" height="120" viewBox="0 0 300 120"
+     xmlns="http://www.w3.org/2000/svg" fill="none">
+
+  <!-- Background puzzle-piece -->
+  <path d="M20 20 h80 a10 10 0 0 1 10 10 v12
+           a14 14 0 1 0 0 24 v12 a10 10 0 0 1 -10 10 h-80
+           a10 10 0 0 1 -10 -10 v-12
+           a14 14 0 1 0 0 -24 v-12 a10 10 0 0 1 10 -10 z"
+        fill="#4F46E5" />
+
+  <!-- Code braces -->
+  <text x="60" y="70" text-anchor="middle"
+        font-family="Consolas, Menlo, monospace"
+        font-size="60" fill="#FFFFFF">{</text>
+  <text x="100" y="70" text-anchor="middle"
+        font-family="Consolas, Menlo, monospace"
+        font-size="60" fill="#FFFFFF">}</text>
+
+  <!-- Brand wordmark -->
+  <text x="140" y="75" font-family="Segoe UI, Helvetica, Arial, sans-serif"
+        font-weight="700" font-size="46" fill="#111827">Snippy</text>
+  <circle cx="240" cy="40" r="6" fill="#10B981"/>
+</svg>
