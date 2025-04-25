@@ -198,6 +198,7 @@ module cosmosDb './core/database/cosmos-db.bicep' = {
     location: location
     tags: tags
     accountName: '${abbrs.documentDBDatabaseAccounts}${resourceToken}'
+    aiServicesName: openai.outputs.aiServicesName
   }
 }
 
