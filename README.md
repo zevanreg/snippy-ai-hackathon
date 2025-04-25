@@ -32,6 +32,10 @@ urlFragment: snippy
 
 > 💡 This project is inspired by the [Remote MCP Functions Python Sample](https://github.com/Azure-Samples/remote-mcp-functions-python), which demonstrates the core concepts of building MCP tools with Azure Functions.
 
+<p align="center">
+  <a href="https://codespaces.new/Azure-Samples/snippy"> <img src="https://github.com/codespaces/badge.svg" alt="Open in GitHub Codespaces"></a>
+</p>
+
 ---
 
 ## ✨ Feature Highlights
@@ -59,7 +63,7 @@ Snippy provides both standard HTTP endpoints and MCP Tools for interacting with 
 * **Real-time Updates:** Server-Sent Events (SSE) streaming allows Copilot to display live progress from Functions.
 * **Built-in Security:** Utilize standard Azure Functions authentication (keys, identity).
 
-Snippy uses these MCP triggers to surface its snippet management and analysis capabilities directly within **GitHub Copilot Chat** and other compatible clients.
+Snippy surfaces all snippet operations through this trigger so GitHub Copilot and any MCP‑aware client can call them.
 
 ---
 
@@ -133,6 +137,7 @@ graph LR
 ### Prerequisites
 
   * **Python 3.11**
+  * **uv** (Install via `pip install uv` or see [official guide](https://github.com/astral-sh/uv))
   * **Azure Functions Core Tools v4** (`npm install -g azure-functions-core-tools@4 --unsafe-perm true` or see [official guide](https://docs.microsoft.com/azure/azure-functions/functions-run-local))
   * **Azure CLI** (`az login`)
   * **Azurite** Storage Emulator (Install via VS Code extension, npm, or [standalone](https://docs.microsoft.com/azure/storage/common/storage-use-azurite))
@@ -145,15 +150,16 @@ graph LR
 
     ```bash
     git clone [https://github.com/Azure-Samples/snippy.git](https://github.com/Azure-Samples/snippy.git)
-    cd snippy
+    cd snippy/src
     ```
 
 2.  **Create and activate a virtual environment:**
 
     ```bash
-    python -m venv .venv
+    # Using uv
+    uv venv .venv
     # Windows:
-    # .venv\Scripts\activate
+    .venv\Scripts\activate
     # macOS/Linux:
     # source .venv/bin/activate
     ```
@@ -161,7 +167,8 @@ graph LR
 3.  **Install dependencies:**
 
     ```bash
-    pip install -r requirements.txt
+    # Using uv
+    uv pip install -r requirements.txt
     ```
 
 4.  **Configure local settings:**
@@ -192,34 +199,77 @@ graph LR
 
 -----
 
-## 🔌 Using the MCP Tools with VS Code / Copilot
+## 🔌 Configure MCP Clients
 
-1.  Ensure you have **VS Code Insiders** (latest build) and **GitHub Copilot** installed.
+### 1. Quick mcp.json template
 
-2.  Open the command palette (`Ctrl+Shift+P` or `⇧⌘P`).
+Put the file below at **.vscode/mcp.json** (Codespaces already has the folder). The inputs prompt once, then VS Code stores them in its secrets store.
 
-3.  Run the command: **`MCP: Add Server`**
+```json
+{
+  "inputs": [
+    {
+      "type": "promptString",
+      "id": "functions-mcp-extension-system-key",
+      "description": "Azure Functions MCP Extension System Key",
+      "password": true
+    },
+    {
+      "type": "promptString",
+      "id": "functionapp-name",
+      "description": "Azure Functions App Name"
+    }
+  ],
+  "servers": {
+    "remote-snippy": {
+      "type": "sse",
+      "url": "https://${input:functionapp-name}.azurewebsites.net/runtime/webhooks/mcp/sse",
+      "headers": {
+        "x-functions-key": "${input:functions-mcp-extension-system-key}"
+      }
+    },
+    "local-snippy": {
+      "type": "sse",
+      "url": "http://localhost:7071/runtime/webhooks/mcp/sse"
+    }
+  }
+}
+```
 
-4.  Select **`HTTP (SSE)`**.
+> • Grab the **system key** (`mcp_extension`) from the portal or CLI:  
+> `az functionapp keys list --resource-group <rg> --name <func>`
 
-5.  Paste the local SSE endpoint URL: **`http://localhost:7071/runtime/webhooks/mcp/sse`**
+### 2. Add the server in VS Code / Copilot
 
-6.  Open the **Copilot Chat** view (`Ctrl+Alt+I` or select from sidebar).
+1. Open the Command Palette → **MCP: Add Server** (if you skipped the json).
+2. Choose **HTTP (SSE)** and paste either the local or remote SSE endpoint.
+3. Switch Copilot to *Agent* mode and call the tools:
+   ```text
+   @workspace /#save_snippet Save selection as 'demo-snippet'
+   @workspace /#get_snippet Show 'demo-snippet'
+   ```
 
-7.  Make sure you are in **Agent Mode** (often indicated by `@workspace` or similar).
+### 3. MCP Inspector (optional)
 
-8.  Try invoking the Snippy tools:
+The free [MCP Inspector](https://www.npmjs.com/package/@modelcontextprotocol/inspector) lets you list and invoke tools from any MCP server.
 
-      * Select some code in your editor and type:
-        > `@workspace /#save_snippet Save the selected code as 'my-first-snippet' in project 'test-proj'`
-      * Ask Copilot to retrieve it:
-        > `@workspace /#get_snippet Can you show me the code for the 'my-first-snippet' snippet?`
-      * Ask for analysis:
-        > `@workspace /#deep_research Provide a deep research analysis for the 'my-first-snippet' snippet.`
-      * Ask for a style guide:
-        > `@workspace /#code_style Generate a code style guide based on the 'my-first-snippet' snippet.`
+```bash
+npx @modelcontextprotocol/inspector
+```
+Connect using the same SSE URL – append `?code=<systemKey>` when you test the remote app.
 
-    *(When deployed to Azure, replace the localhost URL with your Azure Function App's SSE endpoint and configure authentication, likely by adding your `x-functions-key` to the `mcp.json` configuration file used by the MCP extension).*
+-----
+
+## ☁️ One‑Click Codespaces
+
+> **Fastest path** – try Snippy in the browser without installing anything.
+<p align="center">
+  <a href="https://codespaces.new/Azure-Samples/snippy"> <img src="https://github.com/codespaces/badge.svg" alt="Open in GitHub Codespaces"></a>
+</p>
+1. Click the **Open in GitHub Codespaces** badge above.
+2. Wait for the dev container to build (1‑2 minutes).
+3. Terminal window appears with `func start` already running via the `postCreate` script.
+4. The MCP extension in VS Code Web auto‑detects `local-snippy` from `.vscode/mcp.json` – accept the prompt to start the server.
 
 -----
 
