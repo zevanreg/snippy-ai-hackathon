@@ -86,11 +86,10 @@ resource aiProject 'Microsoft.MachineLearningServices/workspaces@2023-08-01-prev
 // Role assignments for AI Project to access AI Services
 resource cognitiveServicesContributorRole 'Microsoft.Authorization/roleDefinitions@2022-04-01' existing = {
   name: '25fbc0a9-bd7c-42a3-aa1a-3b75d497ee68'
-  scope: resourceGroup()
+  scope: subscription()
 }
 
 resource cognitiveServicesContributorAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  scope: aiServices
   name: guid(aiServicesId, cognitiveServicesContributorRole.id, aiProject.id)
   properties: {
     principalId: aiProject.identity.principalId
@@ -101,11 +100,10 @@ resource cognitiveServicesContributorAssignment 'Microsoft.Authorization/roleAss
 
 resource cognitiveServicesOpenAIUserRole 'Microsoft.Authorization/roleDefinitions@2022-04-01' existing = {
   name: '5e0bd9bd-7b93-4f28-af87-19fc36ad61bd'
-  scope: resourceGroup()
+  scope: subscription()
 }
 
 resource cognitiveServicesOpenAIUserRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  scope: aiServices
   name: guid(aiProject.id, cognitiveServicesOpenAIUserRole.id, aiServicesId)
   properties: {
     principalId: aiProject.identity.principalId
@@ -116,11 +114,10 @@ resource cognitiveServicesOpenAIUserRoleAssignment 'Microsoft.Authorization/role
 
 resource cognitiveServicesUserRole 'Microsoft.Authorization/roleDefinitions@2022-04-01' existing = {
   name: 'a97b65f3-24c7-4388-baec-2e87135dc908'
-  scope: resourceGroup()
+  scope: subscription()
 }
 
 resource cognitiveServicesUserRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  scope: aiServices
   name: guid(aiProject.id, cognitiveServicesUserRole.id, aiServicesId)
   properties: {
     principalId: aiProject.identity.principalId

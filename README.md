@@ -19,7 +19,7 @@ urlFragment: snippy
 -->
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Azure-Samples/snippy/main/.github/assets/snippy-logo.svg" alt="Snippy logo" width="220"><br>
+  <img src="https://raw.githubusercontent.com/Azure-Samples/snippy/main/.github/assets/snippy-logo.png" alt="Snippy logo" width="150"><br>
   <b>Snippy · Intelligent Code-Snippet Service with MCP Tools</b>
 </p>
 

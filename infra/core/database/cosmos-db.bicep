@@ -13,6 +13,9 @@ param databaseName string = 'snippy'
 @description('Container name for snippets')
 param containerName string = 'snippets'
 
+@description('AI Services name')
+param aiServicesName string
+
 resource account 'Microsoft.DocumentDB/databaseAccounts@2023-11-15' = {
   name: accountName
   location: location
@@ -30,9 +33,6 @@ resource account 'Microsoft.DocumentDB/databaseAccounts@2023-11-15' = {
     capabilities: [
       {
         name: 'EnableServerless'
-      }
-      {
-        name: 'VectorSearch'
       }
     ]
     enableFreeTier: false
@@ -63,6 +63,7 @@ resource container 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/container
       }
       indexingPolicy: {
         indexingMode: 'consistent'
+        automatic: true
         includedPaths: [
           {
             path: '/*'
@@ -73,21 +74,33 @@ resource container 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/container
             path: '/"_etag"/?'
           }
         ]
-        vectorIndexes: [
-          {
-            path: '/embedding'
-            kind: 'HNSW'
-            dimensions: 1536
-            similarity: 'cosine'
-          }
-        ]
       }
     }
   }
 }
 
+resource aiServices 'Microsoft.CognitiveServices/accounts@2024-06-01-preview' = {
+  name: aiServicesName
+  location: location
+  tags: tags
+}
+
+resource embeddingModelDeployment 'Microsoft.CognitiveServices/accounts/deployments@2024-06-01-preview' = {
+  parent: aiServices
+  name: 'embeddingModelDeployment'
+  properties: {
+    model: {
+      format: 'OpenAI'
+      name: 'embeddingModelDeployment'
+    }
+  }
+}
+
+// Vector index needs to be created post-deployment via SDK or REST API
+// as it's not yet supported in ARM/Bicep
+
 output accountName string = account.name
 output databaseName string = database.name
 output containerName string = container.name
 output documentEndpoint string = account.properties.documentEndpoint
-output connectionString string = 'AccountEndpoint=${account.properties.documentEndpoint};AccountKey=${account.listKeys().primaryMasterKey}' 
+output connectionString string = 'AccountEndpoint=${account.properties.documentEndpoint};AccountKey=${listKeys(account.id, account.apiVersion).primaryMasterKey}' 
