@@ -1,14 +1,36 @@
+<!--
+---
+name: Snippy - Intelligent Code Snippet Service with MCP Tools
+description: A serverless code snippet management service using Azure Functions, Durable Functions, Azure OpenAI, and Azure AI Agents.
+page_type: sample
+languages:
+- python
+- bicep
+- azdeveloper
+products:
+- azure-functions
+- azure-durable-functions
+- azure-openai
+- azure-cosmos-db
+- azure-blob-storage
+- azure-ai-agents
+urlFragment: snippy
+---
+-->
+
 <p align="center">
   <img src="https://raw.githubusercontent.com/Azure-Samples/snippy/main/.github/assets/snippy-logo.svg" alt="Snippy logo" width="220"><br>
   <b>Snippy · Intelligent Code-Snippet Service with MCP Tools</b>
 </p>
 
-> 🧩 **Snippy** is a serverless, AI-powered code snippet management service built on **Azure Functions (Python v2)**. It demonstrates how to:
-> * Use **Durable Functions** for complex workflows (e.g., fan-out/fan-in).
-> * Integrate with **Azure OpenAI** to generate vector embeddings.
-> * Store and query data, including vectors, in **Azure Cosmos DB**.
-> * Leverage **Azure AI Agents** service for advanced code analysis and generation tasks.
-> * Expose backend capabilities as **Model Context Protocol (MCP) tools** consumable by Agents (acting as MCP Hosts) like **GitHub Copilot Agent Mode** in VS Code.
+🧩 **Snippy** is a serverless, AI-powered code snippet management service built on **Azure Functions (Python v2)**. It demonstrates how to:
+* Use **Durable Functions** for complex workflows (e.g., fan-out/fan-in).
+* Integrate with **Azure OpenAI** to generate vector embeddings.
+* Store and query data, including vectors, in **Azure Cosmos DB**.
+* Leverage **Azure AI Agents** service for advanced code analysis and generation tasks.
+* Expose backend capabilities as **Model Context Protocol (MCP) tools** consumable by Agents (acting as MCP Hosts) like **GitHub Copilot Agent Mode** in VS Code.
+
+> 💡 This project is inspired by the [Remote MCP Functions Python Sample](https://github.com/Azure-Samples/remote-mcp-functions-python), which demonstrates the core concepts of building MCP tools with Azure Functions.
 
 ---
 
