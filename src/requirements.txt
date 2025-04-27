@@ -1,8 +1,15 @@
+# Azure Functions runtime and core dependencies
 azure-functions
-azure-functions-durable
-azure-storage-blob
-azure-cosmos
-azure-ai-projects
-azure-identity
-pytest
-pytest-asyncio
+
+# Azure service SDKs
+azure-storage-blob    # For blob storage operations
+azure-cosmos         # For Cosmos DB operations 
+azure-ai-projects    # For AI project management
+azure-identity       # For Azure authentication and credentials
+
+# Testing frameworks
+pytest              # Core testing framework
+pytest-asyncio      # Async testing support
+
+# Additional dependencies
+aiohttp            # Async HTTP client/server framework

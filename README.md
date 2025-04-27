@@ -19,18 +19,147 @@ urlFragment: snippy
 -->
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Azure-Samples/snippy/main/.github/assets/snippy-logo.png" alt="Snippy logo" width="150"><br>
+  <img src="https://raw.githubusercontent.com/Azure-Samples/snippy/main/.github/assets/snippy-logo-large.png" alt="Snippy logo" width="150"><br>
   <b>Snippy · Intelligent Code-Snippet Service with MCP Tools</b>
 </p>
 
-🧩 **Snippy** is a serverless, AI-powered code snippet management service built on **Azure Functions (Python v2)**. It demonstrates how to:
-* Use **Durable Functions** for complex workflows (e.g., fan-out/fan-in).
-* Integrate with **Azure OpenAI** to generate vector embeddings.
-* Store and query data, including vectors, in **Azure Cosmos DB**.
-* Leverage **Azure AI Agents** service for advanced code analysis and generation tasks.
-* Expose backend capabilities as **Model Context Protocol (MCP) tools** consumable by Agents (acting as MCP Hosts) like **GitHub Copilot Agent Mode** in VS Code.
+# Snippy - Code Snippet Management Service
 
-> 💡 This project is inspired by the [Remote MCP Functions Python Sample](https://github.com/Azure-Samples/remote-mcp-functions-python), which demonstrates the core concepts of building MCP tools with Azure Functions.
+Snippy is a Python-based service for managing and sharing code snippets. It provides a simple API for creating, retrieving, and managing code snippets with support for multiple programming languages.
+
+## Features
+
+- Create and manage code snippets
+- Support for multiple programming languages
+- Simple REST API
+- Azure Functions-based architecture
+- Easy deployment and scaling
+
+## Architecture
+
+Snippy is built on Azure Functions and uses a serverless architecture. The service consists of:
+
+- HTTP-triggered functions for API endpoints
+- Blob storage for snippet content
+- Cosmos DB for metadata storage
+- Azure Key Vault for secrets management
+
+## API Endpoints
+
+### Create Snippet
+```http
+POST /api/snippets
+Content-Type: application/json
+
+{
+    "title": "My Code Snippet",
+    "description": "A useful code example",
+    "language": "python",
+    "code": "print('Hello, World!')",
+    "tags": ["example", "python"]
+}
+```
+
+### Get Snippet
+```http
+GET /api/snippets/{id}
+```
+
+### List Snippets
+```http
+GET /api/snippets
+```
+
+### Update Snippet
+```http
+PUT /api/snippets/{id}
+Content-Type: application/json
+
+{
+    "title": "Updated Title",
+    "description": "Updated description",
+    "code": "print('Updated code')"
+}
+```
+
+### Delete Snippet
+```http
+DELETE /api/snippets/{id}
+```
+
+## Development
+
+### Prerequisites
+
+- Python 3.8+
+- Azure Functions Core Tools
+- Azure CLI
+- Azure subscription
+
+### Local Development
+
+1. Clone the repository
+2. Create a virtual environment:
+   ```bash
+   python -m venv .venv
+   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+   ```
+3. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+4. Set up local settings:
+   ```bash
+   cp local.settings.json.example local.settings.json
+   ```
+5. Update `local.settings.json` with your Azure credentials
+6. Run the function app locally:
+   ```bash
+   func start
+   ```
+
+### Testing
+
+Run the test suite:
+```bash
+pytest
+```
+
+## Deployment
+
+### Azure Functions Deployment
+
+1. Create a resource group:
+   ```bash
+   az group create --name my-resource-group --location eastus
+   ```
+
+2. Create a storage account:
+   ```bash
+   az storage account create --name mystorageaccount --location eastus --resource-group my-resource-group --sku Standard_LRS
+   ```
+
+3. Create a function app:
+   ```bash
+   az functionapp create --resource-group my-resource-group --consumption-plan-location eastus --runtime python --runtime-version 3.8 --functions-version 3 --name my-function-app --storage-account mystorageaccount
+   ```
+
+4. Deploy the function app:
+   ```bash
+   func azure functionapp publish my-function-app
+   ```
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
 
 <p align="center">
   <a href="https://codespaces.new/Azure-Samples/snippy"> <img src="https://github.com/codespaces/badge.svg" alt="Open in GitHub Codespaces"></a>
