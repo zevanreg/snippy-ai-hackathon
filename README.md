@@ -19,8 +19,8 @@ urlFragment: snippy
 -->
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Azure-Samples/snippy/main/.github/assets/snippy-logo.png" alt="Snippy logo" width="150"><br>
-  <b>Snippy · Intelligent Code-Snippet Service with MCP Tools</b>
+  <img src="https://raw.githubusercontent.com/Azure-Samples/snippy/main/.github/assets/snippy-logo.png" alt="Snippy logo" width="150"><br>
+  <b>Snippy · Intelligent Code-Snippet Service with MCP Tools</b>
 </p>
 
 🧩 **Snippy** is a serverless, AI-powered code snippet management service built on **Azure Functions (Python v2)**. It demonstrates how to:
@@ -71,65 +71,65 @@ Snippy surfaces all snippet operations through this trigger so GitHub Copilot an
 
 ```mermaid
 graph LR
-  subgraph "Clients"
-    Copilot[GitHub Copilot Chat /<br>MCP Client]
-    User[User via HTTP]
-  end
+  subgraph "Clients"
+    Copilot[GitHub Copilot Chat /<br>MCP Client]
+    User[User via HTTP]
+  end
 
-  subgraph "Azure Functions App (Snippy)"
-    direction TB
-    subgraph "Triggers"
-      direction LR
-      MCPTools["MCP Tools<br>(mcpToolTrigger)"]:::tool
-      HttpApi["HTTP API<br>(httpTrigger)"]:::tool
-    end
+  subgraph "Azure Functions App (Snippy)"
+    direction TB
+    subgraph "Triggers"
+      direction LR
+      MCPTools["MCP Tools<br>(mcpToolTrigger)"]:::tool
+      HttpApi["HTTP API<br>(httpTrigger)"]:::tool
+    end
 
-    subgraph "Orchestration & Activities"
-      direction TB
-      Orch[("save_snippet_orchestrator<br>(Durable Function)")]
-      subgraph "Activities"
-        direction LR
-        BlobAct("Blob Upload")
-        EmbedAct("Generate Embedding")
-        CosmosAct("Cosmos Upsert/Query")
-        AgentAct("Invoke AI Agent")
-      end
-    end
+    subgraph "Orchestration & Activities"
+      direction TB
+      Orch[("save_snippet_orchestrator<br>(Durable Function)")]
+      subgraph "Activities"
+        direction LR
+        BlobAct("Blob Upload")
+        EmbedAct("Generate Embedding")
+        CosmosAct("Cosmos Upsert/Query")
+        AgentAct("Invoke AI Agent")
+      end
+    end
 
-    MCPTools -- "save_snippet" --> Orch
-    HttpApi -- "POST /snippets" --> Orch
+    MCPTools -- "save_snippet" --> Orch
+    HttpApi -- "POST /snippets" --> Orch
 
-    Orch -- Fan-out --> BlobAct
-    Orch -- Fan-out --> EmbedAct
-    BlobAct -- Blob URL --> Orch
-    EmbedAct -- Embedding --> Orch
-    Orch -- Fan-in & Upsert Call --> CosmosAct
+    Orch -- Fan-out --> BlobAct
+    Orch -- Fan-out --> EmbedAct
+    BlobAct -- Blob URL --> Orch
+    EmbedAct -- Embedding --> Orch
+    Orch -- Fan-in & Upsert Call --> CosmosAct
 
-    MCPTools -- "get/research/style" --> CosmosAct
-    HttpApi -- "GET/POST ..." --> CosmosAct
-    MCPTools -- "research/style" --> AgentAct
-    HttpApi -- "POST .../research|style" --> AgentAct
-    AgentAct -- Uses Data From --> CosmosAct
+    MCPTools -- "get/research/style" --> CosmosAct
+    HttpApi -- "GET/POST ..." --> CosmosAct
+    MCPTools -- "research/style" --> AgentAct
+    HttpApi -- "POST .../research|style" --> AgentAct
+    AgentAct -- Uses Data From --> CosmosAct
 
-  end
+  end
 
-  subgraph "Azure Services"
-    Blob[(Azure Blob Storage)]
-    Cosmos[(Azure Cosmos DB<br>+ Vector Index)]
-    AOAI(Azure OpenAI<br>Embedding Model)
-    AIAgents(Azure AI Agents Service<br>via AI Project)
-  end
+  subgraph "Azure Services"
+    Blob[(Azure Blob Storage)]
+    Cosmos[(Azure Cosmos DB<br>+ Vector Index)]
+    AOAI(Azure OpenAI<br>Embedding Model)
+    AIAgents(Azure AI Agents Service<br>via AI Project)
+  end
 
-  classDef tool fill:#4F46E5,color:#fff,stroke:#4F46E5
+  classDef tool fill:#4F46E5,color:#fff,stroke:#4F46E5
 
-  Copilot -- Invokes --> MCPTools
-  User -- Calls --> HttpApi
+  Copilot -- Invokes --> MCPTools
+  User -- Calls --> HttpApi
 
-  BlobAct --> Blob
-  EmbedAct --> AOAI
-  CosmosAct --> Cosmos
-  AgentAct --> AIAgents
-````
+  BlobAct --> Blob
+  EmbedAct --> AOAI
+  CosmosAct --> Cosmos
+  AgentAct --> AIAgents
+```
 
 
 ## ⚙️ Getting Started (Local Development)
@@ -149,7 +149,7 @@ graph LR
 1.  **Clone the repository:**
 
     ```bash
-    git clone [https://github.com/Azure-Samples/snippy.git](https://github.com/Azure-Samples/snippy.git)
+    git clone https://github.com/Azure-Samples/snippy.git
     cd snippy/src
     ```
 
@@ -260,12 +260,13 @@ Connect using the same SSE URL – append `?code=<systemKey>` when you test the 
 
 -----
 
-## ☁️ One‑Click Codespaces
+## 💻 One‑Click Codespaces
 
 > **Fastest path** – try Snippy in the browser without installing anything.
 <p align="center">
   <a href="https://codespaces.new/Azure-Samples/snippy"> <img src="https://github.com/codespaces/badge.svg" alt="Open in GitHub Codespaces"></a>
 </p>
+
 1. Click the **Open in GitHub Codespaces** badge above.
 2. Wait for the dev container to build (1‑2 minutes).
 3. Terminal window appears with `func start` already running via the `postCreate` script.
@@ -280,7 +281,7 @@ The Azure Developer CLI (`azd`) provides the simplest way to provision all requi
 1.  **Install or Update AZD:**
     ```bash
     winget install Microsoft.Azure.DeveloperCLI
-    # or: curl -fsSL [https://aka.ms/install-azd.sh](https://aka.ms/install-azd.sh) | bash
+    # or: curl -fsSL https://aka.ms/install-azd.sh | bash
     ```
 2.  **Login to Azure:**
     ```bash

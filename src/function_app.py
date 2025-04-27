@@ -34,7 +34,7 @@ class ToolProperty:
 # Define the tool properties
 tool_properties_save_snippets = [
     ToolProperty(_SNIPPET_NAME_PROPERTY_NAME, "string", "The name of the snippet."),
-    ToolProperty(_PROJECT_ID_PROPERTY_NAME, "string", "The ID of the project."),
+    ToolProperty(_PROJECT_ID_PROPERTY_NAME, "string", "The ID of the project. Optional, defaults to 'default-project' if not provided."),
     ToolProperty(_SNIPPET_PROPERTY_NAME, "string", "The content of the snippet."),
 ]
 
@@ -74,7 +74,7 @@ async def http_save_snippet(req: func.HttpRequest, client: df.DurableOrchestrati
     try:
         req_body = req.get_json()
         
-        required_fields = ["name", "projectId", "code"]
+        required_fields = ["name", "code"]
         for field in required_fields:
             if field not in req_body:
                 return func.HttpResponse(
@@ -82,6 +82,10 @@ async def http_save_snippet(req: func.HttpRequest, client: df.DurableOrchestrati
                     mimetype="application/json",
                     status_code=400
                 )
+        
+        # Set default projectId if not provided
+        if "projectId" not in req_body:
+            req_body["projectId"] = "default-project"
         
         # Start the orchestration
         instance_id = await client.start_new(
@@ -128,7 +132,7 @@ async def mcp_save_snippet(context, client: df.DurableOrchestrationClient) -> st
         
         req_body = {
             "name": mcp_data["arguments"][_SNIPPET_NAME_PROPERTY_NAME],
-            "projectId": mcp_data["arguments"][_PROJECT_ID_PROPERTY_NAME],
+            "projectId": mcp_data["arguments"].get(_PROJECT_ID_PROPERTY_NAME, "default-project"),
             "code": mcp_data["arguments"][_SNIPPET_PROPERTY_NAME]
         }
         
@@ -176,16 +180,17 @@ async def http_get_snippet(req: func.HttpRequest) -> func.HttpResponse:
                 status_code=400
             )
         
-        # TODO: Fix storage account authentication before implementing
-        logging.info(f"HTTP - Getting snippet with name {name}")
+        # Get snippet from Cosmos DB
+        snippet = await cosmos_ops.get_snippet_by_id(name)
+        if not snippet:
+            return func.HttpResponse(
+                body=json.dumps({"error": f"Snippet '{name}' not found"}),
+                mimetype="application/json",
+                status_code=404
+            )
+        
         return func.HttpResponse(
-            body=json.dumps({
-                "id": name,
-                "projectId": "test-project",
-                "code": "def hello_world():\n    print('Hello, World!')",
-                "blobUrl": "dummy-blob-url",
-                "embedding": [0.0] * 1536
-            }),
+            body=json.dumps(snippet),
             mimetype="application/json",
             status_code=200
         )
@@ -223,15 +228,12 @@ async def mcp_get_snippet(context) -> str:
         if not name:
             return json.dumps({"error": "Missing snippet name in MCP context"})
         
-        # TODO: Fix storage account authentication before implementing
-        logging.info(f"MCP - Getting snippet with name {name}")
-        return json.dumps({
-            "id": name,
-            "projectId": "test-project",
-            "code": "def hello_world():\n    print('Hello, World!')",
-            "blobUrl": "dummy-blob-url",
-            "embedding": [0.0] * 1536
-        })
+        # Get snippet from Cosmos DB
+        snippet = await cosmos_ops.get_snippet_by_id(name)
+        if not snippet:
+            return json.dumps({"error": f"Snippet '{name}' not found"})
+        
+        return json.dumps(snippet)
     except json.JSONDecodeError:
         logging.error(f"Failed to decode JSON from MCP context: {context}")
         return json.dumps({"error": "Invalid JSON received in context"})
@@ -263,12 +265,23 @@ async def http_deep_research(req: func.HttpRequest) -> func.HttpResponse:
                 status_code=400
             )
         
-        # TODO: Fix storage account authentication before implementing
-        logging.info(f"HTTP - Would perform research on snippet {name}")
+        # Get snippet from Cosmos DB
+        snippet = await cosmos_ops.get_snippet_by_id(name)
+        if not snippet:
+            return func.HttpResponse(
+                body=json.dumps({"error": f"Snippet '{name}' not found"}),
+                mimetype="application/json",
+                status_code=404
+            )
+        
+        # Get similar snippets for context
+        similar_snippets = await cosmos_ops.find_similar_snippets(snippet["embedding"])
+        
+        # Perform research using AI agent
+        research_results = await deep_research.perform_research(snippet["code"], similar_snippets)
+        
         return func.HttpResponse(
-            body=json.dumps({
-                "research": "Dummy research results for snippet " + name
-            }),
+            body=json.dumps({"research": research_results}),
             mimetype="application/json",
             status_code=200
         )
@@ -306,11 +319,18 @@ async def mcp_deep_research(context) -> str:
         if not name:
             return json.dumps({"error": "Missing snippet name in MCP context"})
         
-        # TODO: Fix storage account authentication before implementing
-        logging.info(f"MCP - Would perform research on snippet {name}")
-        return json.dumps({
-            "research": "Dummy research results for snippet " + name
-        })
+        # Get snippet from Cosmos DB
+        snippet = await cosmos_ops.get_snippet_by_id(name)
+        if not snippet:
+            return json.dumps({"error": f"Snippet '{name}' not found"})
+        
+        # Get similar snippets for context
+        similar_snippets = await cosmos_ops.find_similar_snippets(snippet["embedding"])
+        
+        # Perform research using AI agent
+        research_results = await deep_research.perform_research(snippet["code"], similar_snippets)
+        
+        return json.dumps({"research": research_results})
     except json.JSONDecodeError:
         logging.error(f"Failed to decode JSON from MCP context: {context}")
         return json.dumps({"error": "Invalid JSON received in context"})
@@ -342,12 +362,23 @@ async def http_code_style(req: func.HttpRequest) -> func.HttpResponse:
                 status_code=400
             )
         
-        # TODO: Fix storage account authentication before implementing
-        logging.info(f"HTTP - Would generate code style for snippet {name}")
+        # Get snippet from Cosmos DB
+        snippet = await cosmos_ops.get_snippet_by_id(name)
+        if not snippet:
+            return func.HttpResponse(
+                body=json.dumps({"error": f"Snippet '{name}' not found"}),
+                mimetype="application/json",
+                status_code=404
+            )
+        
+        # Get similar snippets for context
+        similar_snippets = await cosmos_ops.find_similar_snippets(snippet["embedding"])
+        
+        # Generate code style guide using AI agent
+        style_guide = await code_style.generate_code_style(snippet["code"], similar_snippets)
+        
         return func.HttpResponse(
-            body=json.dumps({
-                "styleGuide": "Dummy style guide for snippet " + name
-            }),
+            body=json.dumps({"styleGuide": style_guide}),
             mimetype="application/json",
             status_code=200
         )
@@ -385,11 +416,18 @@ async def mcp_code_style(context) -> str:
         if not name:
             return json.dumps({"error": "Missing snippet name in MCP context"})
         
-        # TODO: Fix storage account authentication before implementing
-        logging.info(f"MCP - Would generate code style for snippet {name}")
-        return json.dumps({
-            "styleGuide": "Dummy style guide for snippet " + name
-        })
+        # Get snippet from Cosmos DB
+        snippet = await cosmos_ops.get_snippet_by_id(name)
+        if not snippet:
+            return json.dumps({"error": f"Snippet '{name}' not found"})
+        
+        # Get similar snippets for context
+        similar_snippets = await cosmos_ops.find_similar_snippets(snippet["embedding"])
+        
+        # Generate code style guide using AI agent
+        style_guide = await code_style.generate_code_style(snippet["code"], similar_snippets)
+        
+        return json.dumps({"styleGuide": style_guide})
     except json.JSONDecodeError:
         logging.error(f"Failed to decode JSON from MCP context: {context}")
         return json.dumps({"error": "Invalid JSON received in context"})
@@ -401,56 +439,56 @@ async def mcp_code_style(context) -> str:
         return json.dumps({"error": str(e)})
 
 @bp.activity_trigger(input_name="payload")
-def upload_raw_code_activity(payload: dict) -> str:
+async def upload_raw_code_activity(payload: dict) -> str:
     """
-    Activity function to upload raw code to blob storage.
-    TODO: Fix storage account authentication before implementing
-    
-    Args:
-        payload: The payload containing code, project_id, and name
-        
-    Returns:
-        The URL of the uploaded blob
+    Activity function for uploading raw code to blob storage.
     """
-    # TODO: Implement proper blob storage upload once authentication is fixed
-    logging.info(f"Would upload code with length {len(payload['code'])} to blob storage")
-    return "dummy-blob-url"
+    logging.info(f"Starting upload_raw_code_activity with payload: {payload}")
+    try:
+        result = await blob_ops.upload_raw_code(
+            code=payload["code"],
+            project_id=payload["project_id"],
+            name=payload["name"]
+        )
+        logging.info(f"Successfully completed upload_raw_code_activity. Result: {result}")
+        return result
+    except Exception as e:
+        logging.error(f"Error in upload_raw_code_activity: {str(e)}")
+        raise
 
 @bp.activity_trigger(input_name="code")
-def generate_embedding_activity(code: str) -> list:
+async def generate_embedding_activity(code: str) -> list:
     """
-    Activity function to generate an embedding for code.
-    TODO: Implement proper embeddings generation once binding is fixed
-    
-    Args:
-        code: The code content to generate an embedding for
-        
-    Returns:
-        The embedding vector
+    Activity function for generating embeddings from code.
     """
-    logging.info(f"Generating embedding for code with length {len(code)}")
-    # TODO: Replace with proper embeddings generation
-    # For now, return a dummy embedding
-    return [0.0] * 1536  # Standard embedding size
+    logging.info("Starting generate_embedding_activity")
+    try:
+        # TODO: Implement embedding generation
+        # For now, return a mock embedding
+        logging.info("Generating mock embedding")
+        embedding = [0.0] * 1536  # Placeholder 1536-dimensional vector
+        logging.info(f"Successfully generated embedding of length {len(embedding)}")
+        return embedding
+    except Exception as e:
+        logging.error(f"Error in generate_embedding_activity: {str(e)}")
+        raise
 
 @bp.activity_trigger(input_name="payload")
-def upsert_document_activity(payload: dict) -> dict:
+async def upsert_document_activity(payload: dict) -> dict:
     """
-    Activity function to upsert a document to Cosmos DB.
-    TODO: Fix storage account authentication before implementing
-    
-    Args:
-        payload: The payload containing name, project_id, code, blob_url, and embedding
-        
-    Returns:
-        The created/updated document
+    Activity function for upserting a document into Cosmos DB.
     """
-    # TODO: Implement proper Cosmos DB upsert once authentication is fixed
-    logging.info(f"Would upsert document with name {payload['name']} to Cosmos DB")
-    return {
-        "id": payload["name"],
-        "projectId": payload["project_id"],
-        "code": payload["code"],
-        "blobUrl": payload["blob_url"],
-        "embedding": payload["embedding"]
-    }
+    logging.info(f"Starting upsert_document_activity with payload: {payload}")
+    try:
+        result = await cosmos_ops.upsert_document(
+            name=payload["name"],
+            project_id=payload["project_id"],
+            code=payload["code"],
+            blob_url=payload["blob_url"],
+            embedding=payload["embedding"]
+        )
+        logging.info(f"Successfully completed upsert_document_activity. Result: {result}")
+        return result
+    except Exception as e:
+        logging.error(f"Error in upsert_document_activity: {str(e)}")
+        raise
