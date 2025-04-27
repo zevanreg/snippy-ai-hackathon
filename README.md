@@ -44,129 +44,6 @@ Snippy is built on Azure Functions and uses a serverless architecture. The servi
 - Cosmos DB for metadata storage
 - Azure Key Vault for secrets management
 
-## API Endpoints
-
-### Create Snippet
-```http
-POST /api/snippets
-Content-Type: application/json
-
-{
-    "title": "My Code Snippet",
-    "description": "A useful code example",
-    "language": "python",
-    "code": "print('Hello, World!')",
-    "tags": ["example", "python"]
-}
-```
-
-### Get Snippet
-```http
-GET /api/snippets/{id}
-```
-
-### List Snippets
-```http
-GET /api/snippets
-```
-
-### Update Snippet
-```http
-PUT /api/snippets/{id}
-Content-Type: application/json
-
-{
-    "title": "Updated Title",
-    "description": "Updated description",
-    "code": "print('Updated code')"
-}
-```
-
-### Delete Snippet
-```http
-DELETE /api/snippets/{id}
-```
-
-## Development
-
-### Prerequisites
-
-- Python 3.8+
-- Azure Functions Core Tools
-- Azure CLI
-- Azure subscription
-
-### Local Development
-
-1. Clone the repository
-2. Create a virtual environment:
-   ```bash
-   python -m venv .venv
-   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-   ```
-3. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-4. Set up local settings:
-   ```bash
-   cp local.settings.json.example local.settings.json
-   ```
-5. Update `local.settings.json` with your Azure credentials
-6. Run the function app locally:
-   ```bash
-   func start
-   ```
-
-### Testing
-
-Run the test suite:
-```bash
-pytest
-```
-
-## Deployment
-
-### Azure Functions Deployment
-
-1. Create a resource group:
-   ```bash
-   az group create --name my-resource-group --location eastus
-   ```
-
-2. Create a storage account:
-   ```bash
-   az storage account create --name mystorageaccount --location eastus --resource-group my-resource-group --sku Standard_LRS
-   ```
-
-3. Create a function app:
-   ```bash
-   az functionapp create --resource-group my-resource-group --consumption-plan-location eastus --runtime python --runtime-version 3.8 --functions-version 3 --name my-function-app --storage-account mystorageaccount
-   ```
-
-4. Deploy the function app:
-   ```bash
-   func azure functionapp publish my-function-app
-   ```
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-<p align="center">
-  <a href="https://codespaces.new/Azure-Samples/snippy"> <img src="https://github.com/codespaces/badge.svg" alt="Open in GitHub Codespaces"></a>
-</p>
-
----
-
 ## ✨ Feature Highlights
 
 Snippy provides both standard HTTP endpoints and MCP Tools for interacting with code snippets:
@@ -175,9 +52,9 @@ Snippy provides both standard HTTP endpoints and MCP Tools for interacting with 
 |---|---|---|---|
 | 📦 **Save Snippet** | HTTP/MCP trigger initiates a Durable Function orchestrator. | *Fan-out:* Uploads raw code to **Blob Storage** & generates embeddings via **Azure OpenAI**. <br> *Fan-in:* Upserts snippet metadata + vector embedding into **Cosmos DB**. | `save_snippet` |
 | 🔍 **Get Snippet** | HTTP/MCP trigger directly fetches snippet data (including code, metadata) from **Cosmos DB**. | Azure Functions, Cosmos DB | `get_snippet` |
-| 🔬 **Deep Research** | HTTP/MCP trigger fetches snippet & similar snippets (via vector search) from **Cosmos DB**, then uses **Azure AI Agents** service to generate a detailed analysis. | Azure Functions, Cosmos DB (Vector Search), Azure AI Agents | `deep_research` |
-| 🎨 **Style Guide Generation** | HTTP/MCP trigger fetches snippet & similar snippets from **Cosmos DB**, then uses **Azure AI Agents** service to generate a language-specific code style guide. | Azure Functions, Cosmos DB (Vector Search), Azure AI Agents | `code_style` |
-| 🧠 **Semantic Search** | **Cosmos DB's integrated vector database** capabilities enable finding snippets based on semantic similarity (used by Research & Style Guide features). | Cosmos DB | *(Internal)* |
+| 📚 **Wiki Generation** | HTTP/MCP trigger uses vector search to find relevant snippets, then uses **Azure AI Agents** to generate comprehensive documentation with Mermaid diagrams. | Azure Functions, Cosmos DB (Vector Search), Azure AI Agents | `deep_wiki` |
+| 🎨 **Style Guide Generation** | HTTP/MCP trigger uses vector search to find relevant snippets, then uses **Azure AI Agents** to generate a language-specific code style guide. | Azure Functions, Cosmos DB (Vector Search), Azure AI Agents | `code_style` |
+| 🧠 **Semantic Search** | **Cosmos DB's integrated vector database** capabilities enable finding snippets based on semantic similarity (used by Wiki & Style Guide features). | Cosmos DB | *(Internal)* |
 | 🔄 **Durable Workflows** | Complex operations like saving snippets leverage **Durable Functions** orchestrators for reliable, parallel execution of activities. | Azure Durable Functions | *(Internal)* |
 | 🛠 **Remote MCP Server** | Azure Functions hosts the `mcpToolTrigger` and the required SSE endpoint (`/runtime/webhooks/mcp/sse`), making tools discoverable and invokable by MCP clients like **GitHub Copilot Chat**. | Azure Functions (MCP Trigger) | *(All)* |
 
@@ -234,10 +111,10 @@ graph LR
     EmbedAct -- Embedding --> Orch
     Orch -- Fan-in & Upsert Call --> CosmosAct
 
-    MCPTools -- "get/research/style" --> CosmosAct
+    MCPTools -- "get/wiki/style" --> CosmosAct
     HttpApi -- "GET/POST ..." --> CosmosAct
-    MCPTools -- "research/style" --> AgentAct
-    HttpApi -- "POST .../research|style" --> AgentAct
+    MCPTools -- "wiki/style" --> AgentAct
+    HttpApi -- "POST .../wiki|style" --> AgentAct
     AgentAct -- Uses Data From --> CosmosAct
 
   end
@@ -259,7 +136,6 @@ graph LR
   CosmosAct --> Cosmos
   AgentAct --> AIAgents
 ```
-
 
 ## ⚙️ Getting Started (Local Development)
 
@@ -376,6 +252,8 @@ Put the file below at **.vscode/mcp.json** (Codespaces already has the folder). 
    ```text
    @workspace /#save_snippet Save selection as 'demo-snippet'
    @workspace /#get_snippet Show 'demo-snippet'
+   @workspace /#deep_wiki Generate wiki documentation
+   @workspace /#code_style Generate style guide
    ```
 
 ### 3. MCP Inspector (optional)
@@ -428,16 +306,6 @@ The Azure Developer CLI (`azd`) provides the simplest way to provision all requi
 
 -----
 
-## 🧪 Tests
-
-Run the automated tests using pytest. These tests mock Azure service calls and are suitable for offline execution.
-
-```bash
-pytest -q
-```
-
------
-
 ## 📁 Project Layout
 
 ```plaintext
@@ -447,7 +315,7 @@ snippy/
 │   └── cosmos_ops.py
 ├── agents/            # Wrappers for Azure AI Agents service calls
 │   ├── code_style.py
-│   └── deep_research.py
+│   └── deep_wiki.py
 ├── infra/             # (If using AZD) Bicep/Terraform templates for Azure resources
 ├── tests/             # Pytest unit/integration tests
 ├── .gitignore
@@ -481,4 +349,59 @@ Contributions are welcome\! Please follow standard fork-and-pull-request workflo
 ## 📜 License
 
 This project is licensed under the [MIT License](LICENSE.md).
+
+## 📝 API Reference
+
+For completeness, here are the HTTP endpoints available:
+
+### Create Snippet
+```http
+POST /api/snippets
+Content-Type: application/json
+
+{
+    "title": "My Code Snippet",
+    "description": "A useful code example",
+    "language": "python",
+    "code": "print('Hello, World!')",
+    "tags": ["example", "python"]
+}
+```
+
+### Get Snippet
+```http
+GET /api/snippets/{id}
+```
+
+### List Snippets
+```http
+GET /api/snippets
+```
+
+### Update Snippet
+```http
+PUT /api/snippets/{id}
+Content-Type: application/json
+
+{
+    "title": "Updated Title",
+    "description": "Updated description",
+    "code": "print('Updated code')"
+}
+```
+
+### Delete Snippet
+```http
+DELETE /api/snippets/{id}
+```
+
+### Generate Wiki Documentation
+```http
+POST /api/snippets/wiki
+```
+
+### Generate Style Guide
+```http
+POST /api/snippets/code-style
+```
 
