@@ -1,6 +1,9 @@
 {
   "version": "2.0",
   "logging": {
+    "logLevel": {
+      "Microsoft.Azure.WebJobs.Extensions.OpenAI": "Information"
+    },
     "applicationInsights": {
       "samplingSettings": {
         "isEnabled": true,

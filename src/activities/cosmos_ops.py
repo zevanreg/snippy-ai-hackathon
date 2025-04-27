@@ -23,16 +23,15 @@ async def get_container():
     )
     return container
 
-async def upsert_document(name: str, project_id: str, code: str, blob_url: str, embedding: list) -> dict:
+async def upsert_document(name: str, project_id: str, code: str, embedding: list) -> dict:
     """
-    Upserts a document into Cosmos DB with vector embedding.
+    Upserts a document into Cosmos DB.
     
     Args:
         name: The name of the snippet (used as id and partition key)
         project_id: The project ID
         code: The code content
-        blob_url: The URL of the blob in storage
-        embedding: The embedding vector from OpenAI
+        embedding: The embedding vector from Azure OpenAI
         
     Returns:
         The created/updated document
@@ -46,15 +45,13 @@ async def upsert_document(name: str, project_id: str, code: str, blob_url: str, 
             "name": name,  # This field is used for partition key
             "projectId": project_id,
             "code": code,
-            "blobUrl": blob_url,
-            "embedding": embedding,
-            "type": "code-snippet"
+            "type": "code-snippet",
+            "embedding": embedding  # Store the embedding vector
         }
         
         # Upsert the document using the name as partition key
         result = await container.upsert_item(
-            body=document,
-            partition_key=name  # The partition key value must match the "name" field
+            body=document
         )
         
         logging.info(f"Successfully upserted document with id '{name}' in project '{project_id}'")
@@ -89,52 +86,4 @@ async def get_snippet_by_id(name: str) -> dict:
                 
     except Exception as e:
         logging.error(f"Error retrieving snippet: {str(e)}")
-        raise
-
-async def search_similar_snippets(embedding: list, top_k: int = 5) -> list:
-    """
-    Searches for similar snippets using vector search.
-    
-    Args:
-        embedding: The embedding vector to search with
-        top_k: The number of results to return
-        
-    Returns:
-        List of similar snippets
-    """
-    try:
-        container = await get_container()
-        
-        # Query using vector search
-        query = """
-        SELECT TOP @top_k
-            c.id,
-            c.name,
-            c.projectId,
-            c.code,
-            c.blobUrl,
-            VectorDistance(c.embedding, @embedding) as similarity
-        FROM c
-        WHERE c.type = 'code-snippet'
-        ORDER BY VectorDistance(c.embedding, @embedding)
-        """
-        
-        parameters = [
-            {"name": "@embedding", "value": embedding},
-            {"name": "@top_k", "value": top_k}
-        ]
-        
-        # Execute query with cross-partition enabled
-        items = []
-        async for item in container.query_items(
-            query=query,
-            parameters=parameters,
-            enable_cross_partition_query=True
-        ):
-            items.append(item)
-        
-        logging.info(f"Found {len(items)} similar snippets")
-        return items
-    except Exception as e:
-        logging.error(f"Error searching similar snippets: {str(e)}")
         raise
