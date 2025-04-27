@@ -1,9 +1,8 @@
-azure-functions>=1.23.0
+azure-functions
 azure-functions-durable
-azure-storage-blob>=12.19.0
-azure-cosmos>=4.6.0
+azure-storage-blob
+azure-cosmos
 azure-ai-projects
 azure-identity
 pytest
 pytest-asyncio
-
