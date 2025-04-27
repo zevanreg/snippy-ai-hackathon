@@ -13,7 +13,7 @@ Follow **Conventional Commits**.
 ```
 
 - Types: `feat`, `fix`, `chore`, `test`, `docs`, `refactor`.
-- Subject ≤ 72 chars, present-tense imperative (“fix upload_raw_code auth”).
+- Subject ≤ 72 chars, present-tense imperative.
 - Body: what & why, wrapped at 80 chars.
 - Footer: issue references, breaking-change notice.
 ```

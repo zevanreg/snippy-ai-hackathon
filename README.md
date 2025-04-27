@@ -443,8 +443,7 @@ pytest -q
 ```plaintext
 snippy/
 ├── .github/           # GitHub Actions workflows, issue templates, etc.
-├── activities/        # Durable Function activities (Blob, Cosmos ops)
-│   ├── blob_ops.py
+├── data/              # Data access layer (Cosmos DB operations)
 │   └── cosmos_ops.py
 ├── agents/            # Wrappers for Azure AI Agents service calls
 │   ├── code_style.py

@@ -1,7 +1,7 @@
 import json
 import logging
 import azure.functions as func
-from activities import cosmos_ops
+from data import cosmos_ops
 from agents import deep_research, code_style
 
 app = func.FunctionApp()
@@ -384,10 +384,10 @@ async def mcp_deep_research(context) -> str:
         return json.dumps({"error": str(e)})
 
 # HTTP trigger for code style
-@app.route(route="snippets/{name}/code-style", methods=["POST"], auth_level=func.AuthLevel.FUNCTION)
+@app.route(route="snippets/code-style", methods=["POST"], auth_level=func.AuthLevel.FUNCTION)
 async def http_code_style(req: func.HttpRequest) -> func.HttpResponse:
     """
-    HTTP trigger function to generate a code style guide based on a snippet.
+    HTTP trigger function to generate a code style guide using an AI agent.
     
     Args:
         req: The HTTP request
@@ -396,25 +396,11 @@ async def http_code_style(req: func.HttpRequest) -> func.HttpResponse:
         HTTP response with the code style guide
     """
     try:
-        name = req.route_params.get("name")
-        if not name:
-            return func.HttpResponse(
-                body=json.dumps({"error": "Missing snippet name in route"}),
-                mimetype="application/json",
-                status_code=400
-            )
-        
-        # Get snippet from Cosmos DB
-        snippet = await cosmos_ops.get_snippet_by_id(name)
-        if not snippet:
-            return func.HttpResponse(
-                body=json.dumps({"error": f"Snippet '{name}' not found"}),
-                mimetype="application/json",
-                status_code=404
-            )
+        logging.info("Starting code style generation using AI agent")
         
         # Generate code style guide using AI agent
-        style_guide = await code_style.generate_code_style(snippet["code"], [])
+        style_guide = await code_style.generate_code_style()
+        logging.info("Successfully generated code style guide")
         
         return func.HttpResponse(
             body=json.dumps({"styleGuide": style_guide}),
@@ -422,7 +408,7 @@ async def http_code_style(req: func.HttpRequest) -> func.HttpResponse:
             status_code=200
         )
     except Exception as e:
-        logging.error(f"Error in http_code_style: {str(e)}")
+        logging.error(f"Error in http_code_style: {str(e)}", exc_info=True)
         return func.HttpResponse(
             body=json.dumps({"error": str(e)}),
             mimetype="application/json",
@@ -434,43 +420,28 @@ async def http_code_style(req: func.HttpRequest) -> func.HttpResponse:
     arg_name="context",
     type="mcpToolTrigger",
     toolName="code_style",
-    description="Generate a code style guide based on a snippet.",
-    toolProperties=tool_properties_code_style_json,
+    description="Generate a code style guide using an AI agent.",
+    toolProperties=json.dumps([]),  # No properties needed since we use AI agent
 )
 async def mcp_code_style(context) -> str:
     """
-    MCP tool trigger function to generate a code style guide based on a snippet.
+    MCP tool trigger function to generate a code style guide using an AI agent.
     
     Args:
-        context: The MCP tool context (likely a JSON string)
+        context: The MCP tool context (unused)
         
     Returns:
         JSON string with the code style guide
     """
     try:
-        # Parse the incoming context string
-        mcp_data = json.loads(context)
-        
-        name = mcp_data["arguments"][_SNIPPET_NAME_PROPERTY_NAME]
-        if not name:
-            return json.dumps({"error": "Missing snippet name in MCP context"})
-        
-        # Get snippet from Cosmos DB
-        snippet = await cosmos_ops.get_snippet_by_id(name)
-        if not snippet:
-            return json.dumps({"error": f"Snippet '{name}' not found"})
+        logging.info("Starting MCP code style generation using AI agent")
         
         # Generate code style guide using AI agent
-        style_guide = await code_style.generate_code_style(snippet["code"], [])
+        style_guide = await code_style.generate_code_style()
+        logging.info("Successfully generated code style guide")
         
         return json.dumps({"styleGuide": style_guide})
-    except json.JSONDecodeError:
-        logging.error(f"Failed to decode JSON from MCP context: {context}")
-        return json.dumps({"error": "Invalid JSON received in context"})
-    except KeyError as e:
-        logging.error(f"Missing key in parsed MCP context: {e}")
-        return json.dumps({"error": f"Missing expected argument: {e}"})
     except Exception as e:
-        logging.error(f"Error in mcp_code_style: {str(e)}")
+        logging.error(f"Error in mcp_code_style: {str(e)}", exc_info=True)
         return json.dumps({"error": str(e)})
 

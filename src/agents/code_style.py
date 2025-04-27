@@ -1,83 +1,137 @@
 import os
 import logging
-import time
-from azure.ai.projects import AIProjectClient
-from azure.ai.projects.models import MessageTextContent
-from azure.identity import DefaultAzureCredential
+from azure.ai.projects.aio import AIProjectClient
+from azure.ai.projects.models import AsyncFunctionTool
+from azure.identity.aio import DefaultAzureCredential
+from agents.tools import vector_search
 
-async def generate_code_style(snippet_text: str, similar_snippets: list) -> str:
+# Configure logging for this module
+logger = logging.getLogger(__name__)
+
+# Reduce Azure SDK logging to focus on our application logs
+logging.getLogger("azure").setLevel(logging.WARNING)
+logging.getLogger("azure.core").setLevel(logging.WARNING)
+logging.getLogger("azure.ai.projects").setLevel(logging.WARNING)
+
+# System prompt for the code style synthesizer agent
+# This prompt defines the agent's personality, capabilities, and constraints
+_CODE_STYLE_SYSTEM_PROMPT = """
+You are CodeStyleSynthesizer, an autonomous agent that produces a code style guide.
+
+You have access to a vector_search tool that can find relevant code snippets in the database.
+
+Your task is to:
+1. Perform a SINGLE vector search to find relevant code snippets that demonstrate various coding patterns
+2. Analyze ALL patterns and conventions found in the code
+3. Generate a comprehensive code style guide in Markdown format
+
+The style guide should cover:
+- Naming conventions
+- Code organization
+- Documentation standards
+- Error handling
+- Logging practices
+- Any other relevant style aspects
+
+For each section, provide:
+- Clear, concise rules
+- Examples from actual code snippets
+- Best practices and recommendations
+
+IMPORTANT: Use vector_search only ONCE to get a comprehensive set of examples. Do not make multiple searches.
+
+Return only the final Markdown document, no additional commentary.
+"""
+
+async def generate_code_style() -> str:
     """
-    Generates a code style guide based on a snippet and similar snippets.
+    Generates a code style guide using an AI agent.
     
-    Args:
-        snippet_text: The text of the snippet to analyze
-        similar_snippets: List of similar snippets from vector search
-        
+    This function:
+    1. Creates an AI agent with the CodeStyleSynthesizer personality
+    2. Provides the agent with a vector search tool to find code examples
+    3. Manages the agent's execution and tool calls
+    4. Returns the generated style guide
+    
+    The agent uses Azure AI Agents service to:
+    - Understand the task through the system prompt
+    - Use the vector search tool to find relevant code
+    - Generate a comprehensive style guide based on the code patterns
+    
     Returns:
-        The generated code style guide as a string
+        str: The generated code style guide in Markdown format
     """
     try:
-        project_client = AIProjectClient.from_connection_string(
-            credential=DefaultAzureCredential(),
-            conn_str=os.environ["PROJECT_CONNECTION_STRING"]
-        )
+        # Log the system prompt for debugging and transparency
+        logger.info("System prompt:\n%s", _CODE_STYLE_SYSTEM_PROMPT)
         
-        context = f"Main code snippet:\n```\n{snippet_text}\n```\n\n"
-        
-        if similar_snippets and len(similar_snippets) > 0:
-            context += "Similar snippets found in the repository:\n"
-            for i, similar in enumerate(similar_snippets):
-                context += f"\nSimilar snippet {i+1} (ID: {similar['id']}):\n```\n{similar['code']}\n```\n"
-        
-        agent = project_client.agents.create_agent(
-            name="CodeStyleAgent",
-            description="An agent that analyzes code and creates style guides",
-            instructions="""
-            You are a code style expert that analyzes code and creates style guides.
-            Generate a reusable code-style guide based on the provided code snippets.
-            The style guide should cover:
-            
-            1. Naming conventions for variables, functions, classes, etc.
-            2. Formatting rules (indentation, line length, etc.)
-            3. Comment style and documentation practices
-            4. Error handling patterns
-            5. Design patterns and architectural approaches
-            6. Testing conventions
-            
-            The guide should be specific to the language and frameworks used in the snippets
-            and should be consistent with the existing code style.
-            """
-        )
-        
-        thread = project_client.agents.create_thread()
-        
-        project_client.agents.create_message(
-            thread_id=thread.id,
-            role="user",
-            content=MessageTextContent(text=context)
-        )
-        
-        run = project_client.agents.create_run(
-            thread_id=thread.id,
-            agent_id=agent.id
-        )
-        
-        while True:
-            run = project_client.agents.get_run(thread_id=thread.id, run_id=run.id)
-            if run.status == "completed":
-                break
-            elif run.status in ["failed", "cancelled", "expired"]:
-                raise Exception(f"Run failed with status: {run.status}")
-            time.sleep(1)
-        
-        messages = project_client.agents.list_messages(thread_id=thread.id)
-        
-        assistant_messages = [msg for msg in messages if msg.role == "assistant"]
-        if not assistant_messages:
-            raise Exception("No assistant messages found")
-        
-        last_message = assistant_messages[-1]
-        return last_message.content[0].text
+        # Create an Azure credential for authentication
+        async with DefaultAzureCredential() as credential:
+            # Connect to the Azure AI Project that hosts our agent
+            async with AIProjectClient.from_connection_string(
+                credential=credential,
+                conn_str=os.environ["PROJECT_CONNECTION_STRING"]
+            ) as project_client:
+                # Create the vector search tool that the agent will use
+                functions = AsyncFunctionTool(functions=[vector_search.vector_search])
+                
+                # Create the agent with its personality and tools
+                agent = await project_client.agents.create_agent(
+                    name="CodeStyleSynthesizer",
+                    description="An agent that produces code style guides",
+                    instructions=_CODE_STYLE_SYSTEM_PROMPT,
+                    tools=functions.definitions,
+                    model=os.environ["AGENTS_MODEL_DEPLOYMENT_NAME"]
+                )
+                logger.info("Created agent: %s with tool: vector_search", agent.name)
+                
+                # Create a conversation thread for the agent
+                thread = await project_client.agents.create_thread()
+                await project_client.agents.create_message(
+                    thread_id=thread.id,
+                    role="user",
+                    content="Generate a code style guide."
+                )
+                
+                # Start the agent's execution
+                run = await project_client.agents.create_run(
+                    thread_id=thread.id,
+                    agent_id=agent.id
+                )
+                
+                # Monitor the agent's progress and handle tool calls
+                tool_call_count = 0
+                while True:
+                    run = await project_client.agents.get_run(thread_id=thread.id, run_id=run.id)
+                    if run.status == "completed":
+                        break
+                    elif run.status == "failed":
+                        raise Exception("Agent run failed")
+                    elif run.status == "requires_action":
+                        # Handle tool calls from the agent
+                        tool_calls = run.required_action.submit_tool_outputs.tool_calls
+                        tool_outputs = []
+                        for tool_call in tool_calls:
+                            logger.info("Agent %s calling tool: %s", agent.name, tool_call.function.name)
+                            output = await functions.execute(tool_call)
+                            tool_outputs.append({
+                                "tool_call_id": tool_call.id,
+                                "output": output
+                            })
+                            tool_call_count += 1
+                        await project_client.agents.submit_tool_outputs_to_run(
+                            thread_id=thread.id,
+                            run_id=run.id,
+                            tool_outputs=tool_outputs
+                        )
+                
+                # Get the final response from the agent
+                messages = await project_client.agents.list_messages(thread_id=thread.id)
+                response = str(messages.data[0].content[0].text.value)
+                logger.info("Code style guide generated by %s (%d tool calls):\n%s", 
+                          agent.name, tool_call_count, response)
+                return response
+                
     except Exception as e:
-        logging.error(f"Error generating code style: {str(e)}")
+        logger.error("Code style generation failed: %s", str(e), exc_info=True)
         raise
