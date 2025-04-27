@@ -3,9 +3,10 @@ azure-functions
 
 # Azure service SDKs
 azure-storage-blob    # For blob storage operations
-azure-cosmos         # For Cosmos DB operations 
-azure-ai-projects    # For AI project management
-azure-identity       # For Azure authentication and credentials
+azure-cosmos         # For Cosmos DB operations
+azure-ai-projects    # For AI project management & getting inference client
+azure-identity       # For Azure authentication (DefaultAzureCredential)
+azure-ai-inference   # For the EmbeddingsClient type hint and operations
 
 # Testing frameworks
 pytest              # Core testing framework

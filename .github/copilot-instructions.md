@@ -26,7 +26,7 @@
 
 # 👉 Commit-message generation instructions
 - Follow **Conventional Commits** (`feat:`, `fix:`, `test:`, `chore:` …).
-- First line ≤ 72 chars, present-tense imperative (“fix upload_raw_code auth”).
+- First line ≤ 72 chars, present-tense imperative.
 - Include a short body describing *why* and reference issues `(fixes #123)`.
 
 # 👉 Pull-request title/description instructions

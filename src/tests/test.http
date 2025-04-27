@@ -54,20 +54,14 @@ Content-Type: application/json
 
 {}
 
-### Generate code style guide for a basic snippet
-POST http://localhost:7071/api/snippets/test-snippet/code-style
+### Generate code style guide using AI agent
+POST http://localhost:7071/api/snippets/code-style
 Content-Type: application/json
 
 {}
 
 ### Research the complex snippet
 POST http://localhost:7071/api/snippets/complex-snippet/research
-Content-Type: application/json
-
-{}
-
-### Get code style for complex snippet
-POST http://localhost:7071/api/snippets/complex-snippet/code-style
 Content-Type: application/json
 
 {} 
