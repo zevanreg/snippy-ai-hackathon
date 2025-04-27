@@ -1,3 +1,11 @@
+### Snippy Azure Functions API Test Suite
+# This file contains HTTP requests for testing the Snippy Azure Functions endpoints using a REST client.
+# It demonstrates typical usage scenarios:
+# - Saving code snippets (with and without explicit projectId)
+# - Retrieving snippets by name
+# - Performing deep research on a snippet
+# - Generating a code style guide via AI agent
+
 ### Basic Snippet Operations
 
 ### Save a new snippet with projectId

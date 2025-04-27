@@ -1,3 +1,9 @@
+# Module for Azure Cosmos DB operations:
+# - Manage singleton client, database, and container
+# - Configure container with vector index for embeddings
+# - Upsert and retrieve code snippet documents with embeddings
+# - Perform vector similarity search using DiskANN index
+
 import os
 import logging
 from azure.cosmos.aio import CosmosClient
@@ -12,11 +18,13 @@ COSMOS_DATABASE_NAME = os.environ.get("COSMOS_DATABASE_NAME", "dev-snippet-db")
 COSMOS_CONTAINER_NAME = os.environ.get("COSMOS_CONTAINER_NAME", "code-snippets")
 COSMOS_VECTOR_TOP_K = int(os.environ.get("COSMOS_VECTOR_TOP_K", "30"))
 
-# Singleton Cosmos client
+# Singleton references for client, database, and container caching
+# This ensures we reuse connections across calls
 _cosmos_client = None
 _database = None
 _container = None
 
+# Gets or creates the singleton Cosmos client, caching it for reuse
 async def get_cosmos_client():
     """
     Gets or creates the singleton Cosmos client.
@@ -27,6 +35,7 @@ async def get_cosmos_client():
         _cosmos_client = CosmosClient.from_connection_string(os.environ["COSMOS_CONN"])
     return _cosmos_client
 
+# Gets or creates the singleton Cosmos database reference
 async def get_database():
     """
     Gets or creates the singleton database.
@@ -37,6 +46,8 @@ async def get_database():
         _database = await client.create_database_if_not_exists(COSMOS_DATABASE_NAME)
     return _database
 
+# Gets or creates the Cosmos DB container with proper partition key and vector index configuration
+# The container is set up with a partition on /name and a vectorEmbeddingPolicy on /embedding
 async def get_container():
     """
     Gets or creates the Cosmos DB container with proper partition key and vector index configuration.
@@ -96,6 +107,7 @@ async def get_container():
             raise
     return _container
 
+# Closes all Cosmos DB connections and resets cached client, database, and container
 async def close_connections():
     """
     Closes all Cosmos DB connections.
@@ -108,6 +120,8 @@ async def close_connections():
         _container = None
         logger.info("Closed Cosmos DB connections")
 
+# Upserts a document into Cosmos DB with vector embeddings
+# The document includes id, name, projectId, code, type, and embedding fields
 async def upsert_document(name: str, project_id: str, code: str, embedding: list) -> dict:
     """
     Upserts a document into Cosmos DB with vector embeddings.
@@ -160,6 +174,8 @@ async def upsert_document(name: str, project_id: str, code: str, embedding: list
         logger.error(f"Error upserting document: {str(e)}", exc_info=True)
         raise
 
+# Retrieves a snippet by its id (partition key) from Cosmos DB
+# Returns the document or None if not found
 async def get_snippet_by_id(name: str) -> dict:
     """
     Gets a snippet from Cosmos DB by id.
@@ -193,6 +209,8 @@ async def get_snippet_by_id(name: str) -> dict:
         logger.error(f"Error retrieving snippet: {str(e)}", exc_info=True)
         raise
 
+# Performs vector similarity search using Cosmos DB's DiskANN index
+# Returns the top-k similar snippet documents with their distance scores
 async def query_similar_snippets(
     query_vector: list[float], *, project_id: str, k: int = COSMOS_VECTOR_TOP_K
 ) -> list[dict]:

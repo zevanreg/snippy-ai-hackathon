@@ -1,3 +1,9 @@
+# Module for performing deep research analysis on code snippets using Azure AI Agents.
+# This module:
+# - Sets up Azure AI Project Client and authentication
+# - Creates an agent to analyze code semantics, patterns, and best practices
+# - Sends user messages and polls for agent run completion
+# - Returns detailed research findings
 import os
 import logging
 import time

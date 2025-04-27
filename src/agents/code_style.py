@@ -1,3 +1,10 @@
+# Module for generating a code style guide using Azure AI Agents service.
+# This module:
+# - Defines the system prompt and instructions for the CodeStyleSynthesizer agent
+# - Sets up Azure AI Project Client and authentication
+# - Registers the vector_search tool for retrieving code examples
+# - Manages the lifecycle of the AI agent, thread, messages, and run
+# - Returns a comprehensive Markdown style guide based on code examples
 import os
 import logging
 from azure.ai.projects.aio import AIProjectClient

@@ -1,3 +1,8 @@
+# Module for vector similarity search tool in Azure AI Projects:
+# - Authenticates via Azure DefaultAzureCredential
+# - Generates text embeddings for the query using Azure AI Inference
+# - Queries Cosmos DB vector index for similar code snippets
+# - Returns results as a JSON string
 import json
 import logging
 import os
@@ -14,65 +19,59 @@ logging.getLogger("azure").setLevel(logging.WARNING)
 logging.getLogger("azure.core").setLevel(logging.WARNING)
 logging.getLogger("azure.ai.projects").setLevel(logging.WARNING)
 
+# Performs vector similarity search on code snippets
+# Args:
+#     query: The search query text (plain language or code fragment)
+#     k: Number of top matches to return
+#     project_id: The project ID to scope the search
+# Returns:
+#     JSON string of matching snippets with their IDs, code, and similarity scores
 async def vector_search(query: str, k: int = 30, project_id: str = "default-project") -> str:
-    """
-    Performs vector similarity search on code snippets using Azure AI Inference via AI Project Client.
-    
-    This tool obtains an authenticated embeddings client via the AI Project Client,
-    generates embeddings for the query, and then queries Cosmos DB's vector index
-    for similar snippets.
-    
-    Args:
-        query: The search query text (can be plain language or code fragment).
-        k: Number of results to return (default: 30).
-        project_id: The project ID to search within (default: "default-project").
-        
-    Returns:
-        JSON string containing matching snippets with their IDs, code, and score:
-        [
-            {"id": "snippet-1", "code": "...", "score": 0.95},
-            {"id": "snippet-2", "code": "...", "score": 0.92},
-            ...
-        ]
-        
-    Raises:
-        Exception: If obtaining clients, embedding generation, or database query fails.
-    """
+    # Retrieve required environment variables for authentication and model
     project_connection_string = os.environ.get("PROJECT_CONNECTION_STRING")
     model_deployment_name = os.environ.get("EMBEDDING_MODEL_DEPLOYMENT_NAME")
 
+    # Validate configuration
     if not project_connection_string or not model_deployment_name:
         raise ValueError("Required environment variables not configured.")
 
     try:
+        # Authenticate with Azure using DefaultAzureCredential
         async with DefaultAzureCredential() as credential:
+            # Connect to the AI Project client using the connection string
             async with AIProjectClient.from_connection_string(
                 credential=credential,
                 conn_str=project_connection_string,
             ) as project_client:
+                # Create an embeddings client from the AI project
                 async with await project_client.inference.get_embeddings_client() as embeddings_client:
-                    # Generate embedding for the query
+                    # Generate embeddings for the input query
                     response = await embeddings_client.embed(
                         model=model_deployment_name,
                         input=[query]
                     )
 
+                    # Ensure the embedding was generated successfully
                     if not response.data or not response.data[0].embedding:
                         raise ValueError("Failed to generate embedding.")
 
+                    # Extract the embedding vector
                     query_vector = response.data[0].embedding
 
-                    # Query Cosmos DB
+                    # Perform vector search in Cosmos DB with the generated embedding
                     results = await cosmos_ops.query_similar_snippets(
                         query_vector=query_vector,
                         project_id=project_id,
                         k=k
                     )
 
+                    # Return the search results as a JSON string
                     return json.dumps(results)
 
     except Exception as e:
+        # Log any errors and return an error payload
         logger.error("Vector search failed: %s", str(e), exc_info=True)
         return json.dumps({"error": str(e)})
     finally:
+        # Close Cosmos DB connections to clean up resources
         await cosmos_ops.close_connections() 
