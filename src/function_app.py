@@ -9,7 +9,7 @@ import json
 import logging
 import azure.functions as func
 from data import cosmos_ops  # Module for Cosmos DB operations
-from agents import deep_research, code_style  # Modules for AI agent operations
+from agents import deep_wiki, code_style  # Modules for AI agent operations
 
 # Create the Azure Functions app instance
 # This is the entry point for all function definitions
@@ -48,9 +48,7 @@ tool_properties_get_snippets = [
     ToolProperty(_SNIPPET_NAME_PROPERTY_NAME, "string", "The name of the snippet."),
 ]
 
-tool_properties_research = [
-    ToolProperty(_SNIPPET_NAME_PROPERTY_NAME, "string", "The name of the snippet to research."),
-]
+tool_properties_wiki = []  # No properties needed since we use vector search
 
 tool_properties_code_style = [
     ToolProperty(_SNIPPET_NAME_PROPERTY_NAME, "string", "The name of the snippet to analyze."),
@@ -60,7 +58,7 @@ tool_properties_code_style = [
 # This is required by the MCP tool trigger binding
 tool_properties_save_snippets_json = json.dumps([prop.to_dict() for prop in tool_properties_save_snippets])
 tool_properties_get_snippets_json = json.dumps([prop.to_dict() for prop in tool_properties_get_snippets])
-tool_properties_research_json = json.dumps([prop.to_dict() for prop in tool_properties_research])
+tool_properties_wiki_json = json.dumps([prop.to_dict() for prop in tool_properties_wiki])
 tool_properties_code_style_json = json.dumps([prop.to_dict() for prop in tool_properties_code_style])
 
 # HTTP trigger for saving snippets
@@ -385,7 +383,7 @@ async def http_deep_research(req: func.HttpRequest) -> func.HttpResponse:
         
         # Perform research using AI agent
         # This demonstrates Azure AI Agents integration
-        research_results = await deep_research.perform_research(snippet["code"], [])
+        research_results = await deep_wiki.perform_research(snippet["code"], [])
         
         return func.HttpResponse(
             body=json.dumps({"research": research_results}),
@@ -407,7 +405,7 @@ async def http_deep_research(req: func.HttpRequest) -> func.HttpResponse:
     type="mcpToolTrigger",
     toolName="deep_research",
     description="Perform deep research on a code snippet.",
-    toolProperties=tool_properties_research_json,
+    toolProperties=tool_properties_wiki_json,
 )
 async def mcp_deep_research(context) -> str:
     """
@@ -442,7 +440,7 @@ async def mcp_deep_research(context) -> str:
         
         # Perform research using AI agent
         # This demonstrates Azure AI Agents integration
-        research_results = await deep_research.perform_research(snippet["code"], [])
+        research_results = await deep_wiki.perform_research(snippet["code"], [])
         
         return json.dumps({"research": research_results})
     except json.JSONDecodeError:
@@ -527,5 +525,69 @@ async def mcp_code_style(context) -> str:
         return json.dumps({"styleGuide": style_guide})
     except Exception as e:
         logging.error(f"Error in mcp_code_style: {str(e)}", exc_info=True)
+        return json.dumps({"error": str(e)})
+
+@app.route(route="snippets/wiki", methods=["POST"], auth_level=func.AuthLevel.FUNCTION)
+async def http_deep_wiki(req: func.HttpRequest) -> func.HttpResponse:
+    """
+    HTTP trigger function to generate wiki documentation for all code snippets.
+    This function demonstrates:
+    1. HTTP trigger binding
+    2. Azure AI Agents for documentation generation
+    3. Vector search in Cosmos DB
+    4. Error handling and validation
+    
+    Args:
+        req: The HTTP request
+        
+    Returns:
+        HTTP response with the generated wiki documentation
+    """
+    try:
+        # Generate wiki documentation
+        wiki_content = await deep_wiki.generate_deep_wiki()
+        
+        return func.HttpResponse(
+            body=wiki_content,
+            mimetype="text/markdown",
+            status_code=200
+        )
+    except Exception as e:
+        logging.error(f"Error in http_deep_wiki: {str(e)}")
+        return func.HttpResponse(
+            body=json.dumps({"error": str(e)}),
+            mimetype="application/json",
+            status_code=500
+        )
+
+@app.generic_trigger(
+    arg_name="context",
+    type="mcpToolTrigger",
+    toolName="deep_wiki",
+    description="Generate comprehensive wiki documentation for all code snippets.",
+    toolProperties=json.dumps([]),  # No properties needed since we use vector search
+)
+async def mcp_deep_wiki(context) -> str:
+    """
+    MCP tool trigger function to generate wiki documentation for all code snippets.
+    This function demonstrates:
+    1. MCP tool trigger binding
+    2. Azure AI Agents for documentation generation
+    3. Vector search in Cosmos DB
+    4. Error handling and validation
+    
+    Args:
+        context: The MCP tool context
+        
+    Returns:
+        JSON string with the generated wiki documentation
+    """
+    try:
+        # Generate wiki documentation
+        wiki_content = await deep_wiki.generate_deep_wiki()
+        
+        return wiki_content
+    except Exception as e:
+        logging.error(f"Error in mcp_deep_wiki: {str(e)}")
         return json.dumps({"error": str(e)})
 
