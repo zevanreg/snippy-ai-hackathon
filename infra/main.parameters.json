@@ -7,9 +7,6 @@
     },
     "location": {
       "value": "${AZURE_LOCATION}"
-    },
-    "vnetEnabled": {
-      "value": "${VNET_ENABLED}"
     }
   }
 }
