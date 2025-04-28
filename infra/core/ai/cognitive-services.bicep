@@ -13,14 +13,11 @@ param embeddingModelName string = 'text-embedding-3-small'
 @description('The embedding model format')
 param embeddingModelFormat string = 'OpenAI'
 
-@description('The embedding model version')
-param embeddingModelVersion string = '3'
-
 @description('The embedding model SKU name')
 param embeddingModelSkuName string = 'Standard'
 
 @description('The embedding model capacity')
-param embeddingModelCapacity int = 1
+param embeddingModelCapacity int = 50
 
 @description('The chat model name to deploy')
 param chatModelName string = 'gpt-4o'
@@ -28,16 +25,13 @@ param chatModelName string = 'gpt-4o'
 @description('The chat model format')
 param chatModelFormat string = 'OpenAI'
 
-@description('The chat model version')
-param chatModelVersion string = '1106-preview'
-
 @description('The chat model SKU name')
 param chatModelSkuName string = 'Standard'
 
 @description('The chat model capacity')
-param chatModelCapacity int = 1
+param chatModelCapacity int = 50
 
-resource aiServices 'Microsoft.CognitiveServices/accounts@2024-06-01-preview' = {
+resource aiServices 'Microsoft.CognitiveServices/accounts@2025-04-01-preview' = {
   name: aiServicesName
   location: location
   tags: tags
@@ -54,7 +48,7 @@ resource aiServices 'Microsoft.CognitiveServices/accounts@2024-06-01-preview' = 
   }
 }
 
-resource embeddingModelDeployment 'Microsoft.CognitiveServices/accounts/deployments@2024-06-01-preview' = {
+resource embeddingModelDeployment 'Microsoft.CognitiveServices/accounts/deployments@2025-04-01-preview' = {
   parent: aiServices
   name: embeddingModelName
   sku: {
@@ -65,12 +59,11 @@ resource embeddingModelDeployment 'Microsoft.CognitiveServices/accounts/deployme
     model: {
       format: embeddingModelFormat
       name: embeddingModelName
-      version: embeddingModelVersion
     }
   }
 }
 
-resource chatModelDeployment 'Microsoft.CognitiveServices/accounts/deployments@2024-06-01-preview' = {
+resource chatModelDeployment 'Microsoft.CognitiveServices/accounts/deployments@2025-04-01-preview' = {
   parent: aiServices
   name: chatModelName
   sku: {
@@ -81,9 +74,11 @@ resource chatModelDeployment 'Microsoft.CognitiveServices/accounts/deployments@2
     model: {
       format: chatModelFormat
       name: chatModelName
-      version: chatModelVersion
     }
   }
+  dependsOn: [
+    embeddingModelDeployment
+  ]
 }
 
 output aiServicesName string = aiServices.name

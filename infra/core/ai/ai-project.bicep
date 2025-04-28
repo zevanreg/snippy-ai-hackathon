@@ -35,7 +35,7 @@ param aiServicesEndpoint string
 param aiServicesName string
 
 // Create AI Hub
-resource aiHub 'Microsoft.MachineLearningServices/workspaces@2024-07-01-preview' = {
+resource aiHub 'Microsoft.MachineLearningServices/workspaces@2025-01-01-preview' = {
   name: aiHubName
   location: location
   tags: tags
@@ -49,24 +49,24 @@ resource aiHub 'Microsoft.MachineLearningServices/workspaces@2024-07-01-preview'
   }
   kind: 'hub'
 
-  resource aiServicesConnection 'connections@2024-07-01-preview' = {
+  resource aiServicesConnection 'connections@2025-01-01-preview' = {
     name: '${aiHubName}-connection-AIServices'
     properties: {
-      category: 'OpenAI'
+      category: 'AzureOpenAI'
       target: aiServicesEndpoint
       authType: 'AAD'
-      isSharedToAll: true
       metadata: {
         ApiType: 'Azure'
         ResourceId: aiServicesId
         Location: location
       }
+      isSharedToAll: true
     }
   }
 }
 
 // Create AI Project
-resource aiProject 'Microsoft.MachineLearningServices/workspaces@2023-08-01-preview' = {
+resource aiProject 'Microsoft.MachineLearningServices/workspaces@2025-01-01-preview' = {
   name: aiProjectName
   location: location
   tags: union(tags, {
