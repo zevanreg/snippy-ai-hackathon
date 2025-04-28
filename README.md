@@ -267,17 +267,32 @@ Connect using the same SSE URL – append `?code=<systemKey>` when you test the 
 
 -----
 
-## 💻 One‑Click Codespaces
+## 🔑 GitHub Codespaces secrets
 
-> **Fastest path** – try Snippy in the browser without installing anything.
+| Secret name | Description |
+|-------------|-------------|
+| **AzureWebJobsStorage** | Connection string for a Storage account (or Azurite if you keep it local). |
+| **COSMOS_CONN** | Connection string for a Cosmos DB account (or leave blank to use the Linux emulator). |
+| **AZURE_OPENAI_ENDPOINT** | Your Azure OpenAI endpoint URL. |
+| **AZURE_OPENAI_KEY** | Primary key for the OpenAI resource. |
+| **PROJECT_CONNECTION_STRING** | Connection string for your Azure AI Project (Agents). |
+
+These secrets are injected into `src/local.settings.json` by `.devcontainer/setup.sh`.
+
+## 💻 One-Click Codespaces
+
+> **Fastest path** – build & run Snippy entirely in the browser.
+
 <p align="center">
-  <a href="https://codespaces.new/Azure-Samples/snippy"> <img src="https://github.com/codespaces/badge.svg" alt="Open in GitHub Codespaces"></a>
+  <a href="https://github.com/codespaces/new?hide_repo_select=true&ref=main&repo=Azure-Samples/snippy&machine=basicLinux32gb&devcontainer_path=.devcontainer%2Fdevcontainer.json">
+    <img src="https://github.com/codespaces/badge.svg" alt="Open in GitHub Codespaces">
+  </a>
 </p>
 
-1. Click the **Open in GitHub Codespaces** badge above.
-2. Wait for the dev container to build (1‑2 minutes).
-3. Terminal window appears with `func start` already running via the `postCreate` script.
-4. The MCP extension in VS Code Web auto‑detects `local-snippy` from `.vscode/mcp.json` – accept the prompt to start the server.
+1.  Click the badge.  
+2.  Add the five secrets listed above when prompted (or pre-set them in **Settings → Codespaces → Secrets**).  
+3.  Wait ~2 minutes while the container builds; the terminal will finish with `func start` already running on port 7071 and forwarded.  
+4.  Browse `http://localhost:7071/api/healthz` (or any endpoint) in the **"Ports"** tab to verify.
 
 -----
 

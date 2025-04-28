@@ -14,7 +14,7 @@ param environmentName string
   }
 })
 param location string
-param vnetEnabled bool
+
 param apiServiceName string = ''
 param apiUserAssignedIdentityName string = ''
 param applicationInsightsName string = ''
@@ -22,7 +22,6 @@ param appServicePlanName string = ''
 param logAnalyticsName string = ''
 param resourceGroupName string = ''
 param storageAccountName string = ''
-param vNetName string = ''
 param disableLocalAuth bool = true
 
 var abbrs = loadJsonContent('./abbreviations.json')
@@ -38,7 +37,7 @@ resource rg 'Microsoft.Resources/resourceGroups@2021-04-01' = {
   tags: tags
 }
 
-// User assigned managed identity to be used by the function app to reach storage and service bus
+// User assigned managed identity to be used by the function app
 module apiUserAssignedIdentity './core/identity/userAssignedIdentity.bicep' = {
   name: 'apiUserAssignedIdentity'
   scope: rg
@@ -64,31 +63,6 @@ module appServicePlan './core/host/appserviceplan.bicep' = {
   }
 }
 
-module api './app/api.bicep' = {
-  name: 'api'
-  scope: rg
-  params: {
-    name: functionAppName
-    location: location
-    tags: tags
-    applicationInsightsName: monitoring.outputs.applicationInsightsName
-    appServicePlanId: appServicePlan.outputs.id
-    runtimeName: 'python'
-    runtimeVersion: '3.11'
-    storageAccountName: storage.outputs.name
-    deploymentStorageContainerName: deploymentStorageContainerName
-    identityId: apiUserAssignedIdentity.outputs.identityId
-    identityClientId: apiUserAssignedIdentity.outputs.identityClientId
-    appSettings: {
-      COSMOS_CONN: cosmosDb.outputs.connectionString
-      EMBEDDING_MODEL_DEPLOYMENT_NAME: openai.outputs.embeddingDeploymentName
-      PROJECT_CONNECTION_STRING: aiProject.outputs.projectConnectionString
-      AZURE_OPENAI_ENDPOINT: openai.outputs.aiServicesEndpoint
-    }
-    virtualNetworkSubnetId: !vnetEnabled ? '' : serviceVirtualNetwork.outputs.appSubnetID
-  }
-}
-
 // Backing storage for Azure functions api
 module storage './core/storage/storage-account.bicep' = {
   name: 'storage'
@@ -98,10 +72,7 @@ module storage './core/storage/storage-account.bicep' = {
     location: location
     tags: tags
     containers: [{name: deploymentStorageContainerName}, {name: 'snippets'}]
-    publicNetworkAccess: vnetEnabled ? 'Disabled' : 'Enabled'
-    networkAcls: !vnetEnabled ? {} : {
-      defaultAction: 'Deny'
-    }
+    publicNetworkAccess: 'Enabled'
   }
 }
 
@@ -127,29 +98,6 @@ module queueRoleAssignmentApi 'app/storage-Access.bicep' = {
     storageAccountName: storage.outputs.name
     roleDefinitionID: StorageQueueDataContributor
     principalID: apiUserAssignedIdentity.outputs.identityPrincipalId
-  }
-}
-
-// Virtual Network & private endpoint to blob storage
-module serviceVirtualNetwork 'app/vnet.bicep' =  if (vnetEnabled) {
-  name: 'serviceVirtualNetwork'
-  scope: rg
-  params: {
-    location: location
-    tags: tags
-    vNetName: !empty(vNetName) ? vNetName : '${abbrs.networkVirtualNetworks}${resourceToken}'
-  }
-}
-
-module storagePrivateEndpoint 'app/storage-PrivateEndpoint.bicep' = if (vnetEnabled) {
-  name: 'servicePrivateEndpoint'
-  scope: rg
-  params: {
-    location: location
-    tags: tags
-    virtualNetworkName: !empty(vNetName) ? vNetName : '${abbrs.networkVirtualNetworks}${resourceToken}'
-    subnetName: !vnetEnabled ? '' : serviceVirtualNetwork.outputs.peSubnetName
-    resourceName: storage.outputs.name
   }
 }
 
@@ -215,6 +163,37 @@ module aiProject './core/ai/ai-project.bicep' = {
     aiServicesId: openai.outputs.aiServicesId
     aiServicesEndpoint: openai.outputs.aiServicesEndpoint
     aiServicesName: openai.outputs.aiServicesName
+  }
+}
+
+module api './app/api.bicep' = {
+  name: 'api'
+  scope: rg
+  params: {
+    name: functionAppName
+    location: location
+    tags: tags
+    applicationInsightsName: monitoring.outputs.applicationInsightsName
+    appServicePlanId: appServicePlan.outputs.id
+    runtimeName: 'python'
+    runtimeVersion: '3.11'
+    storageAccountName: storage.outputs.name
+    deploymentStorageContainerName: deploymentStorageContainerName
+    identityId: apiUserAssignedIdentity.outputs.identityId
+    identityClientId: apiUserAssignedIdentity.outputs.identityClientId
+    appSettings: {
+      COSMOS_CONN: cosmosDb.outputs.connectionString
+      COSMOS_DATABASE_NAME: cosmosDb.outputs.databaseName
+      COSMOS_CONTAINER_NAME: cosmosDb.outputs.containerName
+      BLOB_CONTAINER_NAME: 'snippet-backups'
+      EMBEDDING_MODEL_DEPLOYMENT_NAME: openai.outputs.embeddingDeploymentName
+      AGENTS_MODEL_DEPLOYMENT_NAME: 'gpt-4o'
+      COSMOS_VECTOR_TOP_K: '30'
+      PROJECT_CONNECTION_STRING: aiProject.outputs.projectConnectionString
+      AZURE_OPENAI_ENDPOINT: openai.outputs.aiServicesEndpoint
+      PYTHON_ENABLE_WORKER_EXTENSIONS: '1'
+      AzureWebJobsFeatureFlags: 'EnableWorkerIndexing'
+    }
   }
 }
 
