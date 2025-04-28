@@ -1,16 +1,17 @@
 {
   "IsEncrypted": false,
   "Values": {
-    "AzureWebJobsStorage": "DefaultEndpointsProtocol=https;AccountName=<storage-account-name>;AccountKey=<storage-account-key>;EndpointSuffix=core.windows.net",
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
     "FUNCTIONS_WORKER_RUNTIME": "python",
-    "COSMOS_CONN": "AccountEndpoint=https://<cosmos-account-name>.documents.azure.com:443/;AccountKey=<cosmos-account-key>;",
+    "PYTHON_ENABLE_WORKER_EXTENSIONS": "True",
     "COSMOS_DATABASE_NAME": "dev-snippet-db",
     "COSMOS_CONTAINER_NAME": "code-snippets",
     "BLOB_CONTAINER_NAME": "snippet-backups",
     "EMBEDDING_MODEL_DEPLOYMENT_NAME": "text-embedding-3-small",
+    "AGENTS_MODEL_DEPLOYMENT_NAME": "gpt-4o",
+    "COSMOS_CONN": "AccountEndpoint=https://<cosmos-account-name>.documents.azure.com:443/;AccountKey=<cosmos-account-key>;",
     "PROJECT_CONNECTION_STRING": "<region>.api.azureml.ms;<workspace-id>;<project-name>;<project-name>",
-    "PYTHON_ENABLE_WORKER_EXTENSIONS": "True", 
-    "AZURE_OPENAI_ENDPOINT": "https://<openai-resource-name>-<region>.openai.azure.com/",
-    "AZURE_OPENAI_KEY": "<openai-api-key>"
+    "AZURE_OPENAI_ENDPOINT": "https://ai-<uri-from-ai-foundry-models-page>.openai.azure.com/",
+    "AZURE_OPENAI_KEY": "<api-key-from-ai-foundry-models-page>"
   }
 }
