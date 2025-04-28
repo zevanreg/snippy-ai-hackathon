@@ -1,46 +1,54 @@
 {
-    "name": "Snippy Functions Codespace",
-    "dockerFile": "Dockerfile",
-    "features": {
-      "ghcr.io/devcontainers/features/azure-cli:1": {},
-      "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {},
-      "ghcr.io/devcontainers/features/node:1": { "version": "lts" }
-    },
-    "forwardPorts": [7071],
-    "secrets": [
-      "AzureWebJobsStorage",
-      "COSMOS_CONN",
-      "AZURE_OPENAI_ENDPOINT",
-      "AZURE_OPENAI_KEY",
-      "PROJECT_CONNECTION_STRING"
-    ],
-    "postCreateCommand": "./.devcontainer/setup.sh",
-    "postStartCommand": "bash .devcontainer/start.sh",
-    "customizations": {
-      "vscode": {
-        "extensions": [
-          "ms-azuretools.vscode-azurefunctions",
-          "ms-azuretools.vscode-docker",
-          "GitHub.copilot"
-        ]
-      }
-    },
-    "mounts": [
-      // Mount docker-in-docker library volume
-      "source=codespaces-linux-var-lib-docker,target=/var/lib/docker,type=volume"
-    ],
-    // Always run image-defined docker-init.sh to enable docker-in-docker
-    "overrideCommand": false,
-    "remoteUser": "codespace",
-    "runArgs": [
-      // Enable ptrace-based debugging for Go in container
-      "--cap-add=SYS_PTRACE",
-      "--security-opt",
-      "seccomp=unconfined",
-  
-      // Enable docker-in-docker configuration
-      "--init",
-      "--privileged"
-    ]
-  }
-  
+  "name": "Snippy Functions Codespace",
+  "dockerFile": "Dockerfile",
+
+  "features": {
+    "ghcr.io/devcontainers/features/azure-cli:1": {},
+    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {},
+    "ghcr.io/devcontainers/features/node:1": { "version": "lts" }
+  },
+
+  "forwardPorts": [7071],
+
+  // 👇  object, not array
+  "secrets": {
+    "AzureWebJobsStorage": {},
+    "COSMOS_CONN": {},
+    "AZURE_OPENAI_ENDPOINT": {},
+    "AZURE_OPENAI_KEY": {},
+    "PROJECT_CONNECTION_STRING": {}
+  },
+
+  "postCreateCommand": "./.devcontainer/setup.sh",
+  "postStartCommand": "bash .devcontainer/start.sh",
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-azuretools.vscode-azurefunctions",
+        "ms-azuretools.vscode-docker",
+        "GitHub.copilot"
+      ]
+    }
+  },
+
+  "mounts": [
+    // Mount docker-in-docker library volume
+    "source=codespaces-linux-var-lib-docker,target=/var/lib/docker,type=volume"
+  ],
+
+  // Always run image-defined docker-init.sh to enable docker-in-docker
+  "overrideCommand": false,
+  "remoteUser": "codespace",
+
+  "runArgs": [
+    // Enable ptrace-based debugging for Go in container
+    "--cap-add=SYS_PTRACE",
+    "--security-opt",
+    "seccomp=unconfined",
+
+    // Enable docker-in-docker configuration
+    "--init",
+    "--privileged"
+  ]
+}
