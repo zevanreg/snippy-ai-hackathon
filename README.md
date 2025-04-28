@@ -60,20 +60,20 @@ With the **remote MCP trigger** in Azure Functions you get:
 
 ```mermaid
 graph TD
-  User[Human or Copilot Chat] -->|HTTP / MCP| FnApp[Azure Functions<br>("Snippy")]
+  User[Human or Copilot Chat] -->|HTTP / MCP| FnApp[Azure Functions<br/>Snippy]
 
-  subgraph "Functions"
-    Save[save_snippet]<-->|OpenAI binding<br>embeddings| AOAI
-    Save -->|JSON| Cosmos
+  subgraph Functions
+    Save[save_snippet] -- OpenAI binding<br/>embeddings --> AOAI
+    Save -- JSON --> Cosmos
     Get[get_snippet] --> Cosmos
-    Wiki[deep_wiki] -->|vector search| Cosmos
+    Wiki[deep_wiki] -- vector search --> Cosmos
     Wiki --> AIAgents
-    Style[code_style] -->|vector search| Cosmos
+    Style[code_style] -- vector search --> Cosmos
     Style --> AIAgents
   end
 
-  AOAI[Azure OpenAI<br>embedding model]
-  Cosmos[(Cosmos DB<br>DiskANN)]
+  AOAI[Azure OpenAI<br/>Embedding Model]
+  Cosmos[(Cosmos DB<br/>DiskANN)]
   AIAgents[Azure AI Agents Service]
 ```
 
