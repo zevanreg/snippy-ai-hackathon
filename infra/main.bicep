@@ -7,7 +7,7 @@ param environmentName string
 
 @minLength(1)
 @description('Primary location for all resources')
-@allowed(['australiaeast', 'eastasia', 'eastus', 'eastus2', 'northeurope', 'southcentralus', 'southeastasia', 'swedencentral', 'uksouth', 'westus2', 'eastus2euap'])
+@allowed(['eastus', 'eastus2', 'westus', 'westus2', 'westus3'])
 @metadata({
   azd: {
     type: 'location'
@@ -24,7 +24,15 @@ param resourceGroupName string = ''
 param storageAccountName string = ''
 param disableLocalAuth bool = true
 
+@allowed(['gpt-4o'])
+param chatModelName string = 'gpt-4o'
+
+@allowed(['text-embedding-3-small'])
+param embeddingModelName string = 'text-embedding-3-small'
+
+import * as regionSelector from './app/region-selector.bicep'
 var abbrs = loadJsonContent('./abbreviations.json')
+
 var resourceToken = toLower(uniqueString(subscription().id, environmentName, location))
 var tags = { 'azd-env-name': environmentName }
 var functionAppName = !empty(apiServiceName) ? apiServiceName : '${abbrs.webSitesFunctions}api-${resourceToken}'
@@ -54,7 +62,7 @@ module appServicePlan './core/host/appserviceplan.bicep' = {
   scope: rg
   params: {
     name: !empty(appServicePlanName) ? appServicePlanName : '${abbrs.webServerFarms}${resourceToken}'
-    location: location
+    location: regionSelector.getFlexConsumptionRegion(location)
     tags: tags
     sku: {
       name: 'FC1'
@@ -132,9 +140,11 @@ module openai './core/ai/cognitive-services.bicep' = {
   name: 'openai'
   scope: rg
   params: {
-    location: location
+    location: regionSelector.getCognitiveServicesRegion(location, chatModelName, embeddingModelName)
     tags: tags
+    chatModelName: chatModelName
     aiServicesName: '${abbrs.cognitiveServicesAccounts}${resourceToken}'
+    embeddingModelName: embeddingModelName
   }
 }
 
@@ -171,7 +181,7 @@ module api './app/api.bicep' = {
   scope: rg
   params: {
     name: functionAppName
-    location: location
+    location: regionSelector.getFlexConsumptionRegion(location)
     tags: tags
     applicationInsightsName: monitoring.outputs.applicationInsightsName
     appServicePlanId: appServicePlan.outputs.id
