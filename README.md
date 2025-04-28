@@ -348,23 +348,6 @@ snippy/
 
 -----
 
-## 🤝 Contributing
-
-Contributions are welcome\! Please follow standard fork-and-pull-request workflow.
-
-1.  Fork the repository.
-2.  Create a new branch (`git switch -c feat/your-feature`).
-3.  Make your changes.
-4.  Commit your changes using **Conventional Commits** (`feat: ...`, `fix: ...`, etc.).
-5.  Push to your branch (`git push origin feat/your-feature`).
-6.  Open a Pull Request against the `main` branch.
-
------
-
-## 📜 License
-
-This project is licensed under the [MIT License](LICENSE.md).
-
 ## 📝 API Reference
 
 For completeness, here are the HTTP endpoints available:
@@ -420,3 +403,43 @@ POST /api/snippets/wiki
 POST /api/snippets/code-style
 ```
 
+-----
+
+## 🧹 Cleanup
+
+1. **Stop Local Services:**
+   * Stop the Functions host (Ctrl+C)
+   * Stop Azurite
+   * Stop Cosmos DB Emulator
+
+2. **Remove Azure Resources:**
+   ```bash
+   # If deployed with AZD:
+   azd down --purge
+   # Or manually delete resource group:
+   az group delete --name <your-resource-group>
+   ```
+
+3. **Clean Local Environment:**
+   * Deactivate virtual environment: `deactivate`
+   * Remove virtual environment: `rm -rf .venv`
+   * Remove local settings: `rm local.settings.json`
+
+-----
+
+## 🤝 Contributing
+
+Contributions are welcome\! Please follow standard fork-and-pull-request workflow.
+
+1.  Fork the repository.
+2.  Create a new branch (`git switch -c feat/your-feature`).
+3.  Make your changes.
+4.  Commit your changes using **Conventional Commits** (`feat: ...`, `fix: ...`, etc.).
+5.  Push to your branch (`git push origin feat/your-feature`).
+6.  Open a Pull Request against the `main` branch.
+
+-----
+
+## 📜 License
+
+This project is licensed under the [MIT License](LICENSE.md).

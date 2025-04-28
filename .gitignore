@@ -39,6 +39,7 @@ appsettings.json
 *.swo
 
 # Local development
+**/repomix-output.xml
 .env
 .env.local
 .env.*.local

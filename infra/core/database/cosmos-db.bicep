@@ -23,16 +23,14 @@ resource account 'Microsoft.DocumentDB/databaseAccounts@2023-11-15' = {
   kind: 'GlobalDocumentDB'
   properties: {
     databaseAccountOfferType: 'Standard'
+    capabilities: [
+      { name: 'EnableServerless' }
+    ]
     locations: [
       {
         locationName: location
         failoverPriority: 0
         isZoneRedundant: false
-      }
-    ]
-    capabilities: [
-      {
-        name: 'EnableServerless'
       }
     ]
     enableFreeTier: false
@@ -62,8 +60,8 @@ resource container 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/container
         kind: 'Hash'
       }
       indexingPolicy: {
-        indexingMode: 'consistent'
         automatic: true
+        indexingMode: 'consistent'
         includedPaths: [
           {
             path: '/*'
@@ -78,26 +76,6 @@ resource container 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/container
     }
   }
 }
-
-resource aiServices 'Microsoft.CognitiveServices/accounts@2024-06-01-preview' = {
-  name: aiServicesName
-  location: location
-  tags: tags
-}
-
-resource embeddingModelDeployment 'Microsoft.CognitiveServices/accounts/deployments@2024-06-01-preview' = {
-  parent: aiServices
-  name: 'embeddingModelDeployment'
-  properties: {
-    model: {
-      format: 'OpenAI'
-      name: 'embeddingModelDeployment'
-    }
-  }
-}
-
-// Vector index needs to be created post-deployment via SDK or REST API
-// as it's not yet supported in ARM/Bicep
 
 output accountName string = account.name
 output databaseName string = database.name
