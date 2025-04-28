@@ -34,6 +34,11 @@ param aiServicesEndpoint string
 @description('AI Services name')
 param aiServicesName string
 
+
+resource aiServices 'Microsoft.CognitiveServices/accounts@2025-04-01-preview' existing = {
+  name: aiServicesName
+}
+
 // Create AI Hub
 resource aiHub 'Microsoft.MachineLearningServices/workspaces@2025-01-01-preview' = {
   name: aiHubName
@@ -54,7 +59,10 @@ resource aiHub 'Microsoft.MachineLearningServices/workspaces@2025-01-01-preview'
     properties: {
       category: 'AzureOpenAI'
       target: aiServicesEndpoint
-      authType: 'AAD'
+      authType: 'ApiKey'
+      credentials: {
+        key: aiServices.listKeys().key1
+      }
       metadata: {
         ApiType: 'Azure'
         ResourceId: aiServicesId
