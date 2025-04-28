@@ -1,0 +1,27 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "shell",
+			"label": "Activate Virtual Environment",
+			"command": "${workspaceFolder}/src/.venv/Scripts/activate",
+			"windows": {
+				"command": "${workspaceFolder}/src/.venv/Scripts/activate.ps1"
+			},
+			"presentation": {
+				"reveal": "never"
+			}
+		},
+		{
+			"type": "func",
+			"label": "func: host start",
+			"command": "host start --verbose --debug --port 7071",
+			"problemMatcher": "$func-python-watch",
+			"isBackground": true,
+			"options": {
+				"cwd": "${workspaceFolder}/src"
+			},
+			"dependsOn": ["Activate Virtual Environment"]
+		}
+	]
+}
