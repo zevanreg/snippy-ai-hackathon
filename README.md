@@ -58,6 +58,9 @@ With the **remote MCP trigger** in Azure Functions you get:
 
 ## High-level architecture
 
+
+<img src="https://raw.githubusercontent.com/Azure-Samples/snippy/main/.github/assets/snippy-architecture.png" alt="Snippy Architecture" width="80%"><br>
+
 ```mermaid
 graph TD
   User[Human or Copilot Chat] -->|HTTP / MCP| FnApp[Azure Functions<br/>Snippy]
