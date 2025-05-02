@@ -12,7 +12,7 @@ products:
 - azure-durable-functions
 - azure-openai
 - azure-cosmos-db
-- azure-blob-storage
+- azure-ai-projects
 - azure-ai-agents
 urlFragment: snippy
 ---
@@ -23,233 +23,179 @@ urlFragment: snippy
   <b>Snippy · Intelligent Code-Snippet Service with MCP Tools</b>
 </p>
 
-# Snippy - Code Snippet Management Service
+# Snippy – Intelligent Code‑Snippet Service with MCP Tools
 
-Snippy is a demo Azure Functions app that showcases the new **Model Context Protocol (MCP) trigger** - letting you expose any function as a tool that *GitHub Copilot Chat* and other MCP clients can invoke. The app demonstrates this by implementing a code snippet service with **save, search and AI-powered analysis tools** (using Azure AI Agents), storing snippets and their OpenAI embeddings in **Cosmos DB DiskANN** for semantic search.
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://github.com/codespaces/new?hide_repo_select=true&ref=main&repo=Azure-Samples/snippy&machine=basicLinux32gb&devcontainer_path=.devcontainer%2Fdevcontainer.json)
+[![Open in Dev Containers](https://img.shields.io/static/v1?style=for-the-badge\&label=Dev%20Containers\&message=Open\&color=blue\&logo=visualstudiocode)](https://github.com/codespaces/new?hide_repo_select=true&ref=main&repo=Azure-Samples/snippy&machine=basicLinux32gb&devcontainer_path=.devcontainer%2Fdevcontainer.json)
 
-*Durable Functions fan-out/fan-in workflows are under active development in the branch  
-[`gk/durable-functions`](https://github.com/Azure-Samples/snippy/tree/gk/durable-functions).*
+Snippy is an **Azure Functions**–based reference application that turns any function into an **MCP (Model Context Protocol) tool** consumable by GitHub Copilot Chat and other MCP‑aware clients. The sample implements a production‑style *code‑snippet service* with AI‑powered analysis:
 
----
+* **Save snippets** – persists code, metadata and OpenAI embeddings in **Cosmos DB DiskANN**
+* **Semantic retrieve** – vector search over embeddings
+* **AI Agents** – generate a deep wiki or language‑specific style guide from stored snippets
+* **Durable fan‑out/fan‑in with Blueprints** – [in experimental branch](https://github.com/Azure-Samples/snippy/tree/gk/durable-functions) for large‑scale processing
 
-## ✨ Feature highlights
+The project ships with reproducible **azd** infrastructure, so `azd up` will stand up the entire stack – Functions, Cosmos DB, Azure OpenAI and Azure AI Agents – in a single command.
 
-| Feature | How it works | Core tech | MCP tool |
-| ------ | ------------ | --------- | -------- |
-| **Save Snippet** | 1. Generates embeddings through the Functions ↔ OpenAI binding<br>2. Upserts document + vector to Cosmos DiskANN | Azure Functions, Azure OpenAI, Cosmos DB | `save_snippet` |
-| **Get Snippet** | Reads a single document by id | Azure Functions, Cosmos DB | `get_snippet` |
-| **Generate Wiki** | One vector search → Azure AI Agents → Markdown wiki with Mermaid diagrams | AI Agents, Cosmos DB vector search | `deep_wiki` |
-| **Generate Style Guide** | Same pattern as wiki but outputs a language-specific guide | AI Agents, Cosmos DB vector search | `code_style` |
-| **Remote MCP server** | The Functions runtime hosts `/runtime/webhooks/mcp/sse`, so Copilot (or any MCP client) can call the tools | Azure Functions | All of them |
+> **Important Security Notice**
+> This repository is intended for learning and demonstration purposes. **Do not** deploy it to production without a thorough security review. At a minimum you should:
+>
+> * Swap connection strings for **Managed Identity** + **Azure Key Vault**
+> * Restrict network access to Azure services via Private Endpoints or service‑tags
+> * Enable GitHub secret‑scanning and CI security tools
 
----
-
-### Why MCP?
-
-[Model Context Protocol](https://aka.ms/mcp) is an open standard for advertising and calling custom LLM tools.  
-With the **remote MCP trigger** in Azure Functions you get:
-
-* *Zero* extra infrastructure – the Functions worker is the server.  
-* Elastic scale on Flex Consumption.  
-* Real-time streaming over Server-Sent Events.  
-* First-class Azure auth (keys or Entra ID).
+[Features](#features) • [Architecture](#architecture-diagram) • [Getting Started](#getting-started) • [Guidance](#guidance)
 
 ---
 
-## High-level architecture
+## Features
 
+* **Remote MCP trigger** – expose Functions as real‑time SSE tools
+* **AI‑assisted documentation** – "deep‑wiki" and "code‑style" agents create rich Markdown (Mermaid, diagrams, etc.)
+* **Vector search on Cosmos DB DiskANN** – low‑latency semantic retrieval
+* **One‑click deploy** – `azd up` provisions and deploys code & infra
+* **Codespaces & Dev Containers** – fully configured dev environment in your browser or local VS Code
 
-<img src="https://raw.githubusercontent.com/Azure-Samples/snippy/main/.github/assets/snippy-architecture.png" alt="Snippy Architecture" width="80%"><br>
+### Tool Matrix
+
+| Tool Name      | Purpose                                                             | MCP Type |
+| -------------- | ------------------------------------------------------------------- | -------- |
+| `save_snippet` | Save code, embed via Functions ↔ OpenAI binding, upsert into Cosmos | action   |
+| `get_snippet`  | Fetch snippet by id                                                 | action   |
+| `deep_wiki`    | Generate Markdown wiki from vector search results                   | task     |
+| `code_style`   | Produce language‑specific style guide                               | task     |
+
+---
+
+### Architecture Diagram
+
+![Snippy Architecture](https://raw.githubusercontent.com/Azure-Samples/snippy/main/.github/assets/snippy-architecture.png)
 
 ```mermaid
 graph TD
-  User[Human or Copilot Chat] -->|HTTP / MCP| FnApp[Azure Functions<br/>Snippy]
+  User[Human / Copilot Chat] -->|HTTP / MCP| FnApp[Azure Functions\nSnippy]
 
   subgraph Functions
-    Save[save_snippet] -- OpenAI binding<br/>embeddings --> AOAI
+    Save[save_snippet] -- embeddings --> AOAI
     Save -- JSON --> Cosmos
     Get[get_snippet] --> Cosmos
-    Wiki[deep_wiki] -- vector search --> Cosmos
-    Wiki --> AIAgents
-    Style[code_style] -- vector search --> Cosmos
-    Style --> AIAgents
+    Wiki[deep_wiki] -- vector search --> Cosmos
+    Wiki --> Agents
+    Style[code_style] -- vector search --> Cosmos
+    Style --> Agents
   end
 
-  AOAI[Azure OpenAI<br/>Embedding Model]
-  Cosmos[(Cosmos DB<br/>DiskANN)]
-  AIAgents[Azure AI Agents Service]
+  AOAI[Azure OpenAI]
+  Cosmos[(Cosmos DB DiskANN)]
+  Agents[Azure AI Agents]
 ```
 
 ---
 
-## Getting started (local)
+## Getting Started
 
-### Prerequisites
+You can run Snippy in **GitHub Codespaces**, **VS Code Dev Containers**, or your **local environment**. The fastest path is Codespaces.
 
-| Tool | Notes |
-| ---- | ----- |
-| Python 3.11 | |
-| [`uv`](https://github.com/astral-sh/uv) | fast virtual-env + installer |
-| Azure Functions Core Tools v4 | `$ npm i -g azure-functions-core-tools@4 --unsafe-perm` |
-| Azure CLI | `$ az login` |
-| Azurite | local Storage emulator |
-| Cosmos DB Emulator (Windows) *(or a real account)* | |
-| VS Code Insiders + Copilot Chat *(optional)* | great for MCP testing |
+> Snippy requires an Azure region that supports *text‑embedding‑3‑small* (or a compatible embeddings model) **and** Azure AI Agents. The `azd` workflow prompts you for a region; we recommend **eastus** for best availability.
 
-### Setup
+### GitHub Codespaces
+
+1. Click **Open in Codespaces** above (first badge) – the container build may take a few minutes.
+2. When the terminal appears, sign in:
+
+   ```bash
+   azd auth login --use-device-code
+   ```
+3. Launch the stack:
+
+   ```bash
+   azd up
+   ```
+4. Once deployment completes, copy the printed MCP URL and open GitHub Copilot Chat → *Agent* mode to try commands like “Save this snippet as **hello‑world**”.
+
+### VS Code Dev Containers
+
+Prerequisites: [Docker Desktop](https://www.docker.com/products/docker-desktop) + the [Dev Containers](https://aka.ms/vscode/dev-containers) extension.
+
+1. Click the **Dev Containers** badge (second badge) or run *Remote‑Containers: Open Repository in Container* from VS Code.
+2. Sign in and launch as shown for Codespaces:
+
+   ```bash
+   azd auth login
+   azd up
+   ```
+
+### Local Environment
+
+#### Prerequisites
+
+* [azd](https://aka.ms/install-azd) CLI
+* Python 3.11 + [`uv`](https://github.com/astral-sh/uv)
+* Node 18+ (for Functions Core Tools)
+* Azure Functions Core Tools v4 (`npm i -g azure-functions-core-tools@4 --unsafe-perm`)
+
+#### Quickstart
 
 ```bash
-# 1. clone
-$ git clone https://github.com/Azure-Samples/snippy.git
-$ cd snippy/src
+# 1. Clone & init
+azd init --template Azure-Samples/snippy
 
-# 2. env
-$ uv venv .venv && source .venv/bin/activate    # Windows: .venv\Scripts\activate
+# 2. Sign in
+azd auth login
 
-# 3. deps
-$ uv pip install -r requirements.txt
-
-# 4. secrets
-$ cp local.settings.example.json ../local.settings.json
-# edit the file with:
-#   - COSMOS_CONN (or leave blank for Linux emulator)
-#   - AZURE_OPENAI_ENDPOINT + AZURE_OPENAI_KEY
-#   - PROJECT_CONNECTION_STRING (AI Agents)
+# 3. Provision & deploy
+azd up
 ```
 
-Start Azurite and the Cosmos emulator (or point to real services) then:
+The CLI prints the Function App URL, MCP endpoint and system key when finished. To remove all resources later:
 
 ```bash
-$ func start
-```
-
-The app listens on `http://localhost:7071`.
-
----
-
-## Configure MCP clients
-
-### Quick `mcp.json`
-
-```bash
-$ mkdir -p .vscode && cat > .vscode/mcp.json <<'EOF'
-{
-  "inputs": [
-    {
-      "type": "promptString",
-      "id": "functions-mcp-extension-system-key",
-      "description": "Azure Functions MCP system key",
-      "password": true
-    },
-    {
-      "type": "promptString",
-      "id": "functionapp-name",
-      "description": "Deployed Function App name"
-    }
-  ],
-  "servers": {
-    "local-snippy": {
-      "type": "sse",
-      "url": "http://localhost:7071/runtime/webhooks/mcp/sse"
-    },
-    "remote-snippy": {
-      "type": "sse",
-      "url": "https://${input:functionapp-name}.azurewebsites.net/runtime/webhooks/mcp/sse",
-      "headers": { "x-functions-key": "${input:functions-mcp-extension-system-key}" }
-    }
-  }
-}
-EOF
-```
-
-Grab the *system key* with
-
-```bash
-$ az functionapp keys list -g <rg> -n <func> --query "systemKeys.mcp_extension" -o tsv
-```
-
-### Chat naturally in Copilot
-
-Open Copilot Chat → **Agent** mode and try phrases like:
-
-* "Save this code as **test-snippet**" (first select some code)  
-* “Show me **test-snippet**”  
-* “Create a project wiki”  
-* “Generate a style guide from the stored snippets”
-
-GitHub Copilot will discover and invoke the correct MCP tool automatically.
-
-For a GUI explorer, use MCP Inspector:
-
-```bash
-$ npx @modelcontextprotocol/inspector http://localhost:7071/runtime/webhooks/mcp/sse
+azd down --purge
 ```
 
 ---
 
-## Codespaces - one click, full stack
+## Guidance
 
-<p align="center">
-  <a href="https://github.com/codespaces/new?hide_repo_select=true&ref=main&repo=Azure-Samples/snippy&machine=basicLinux32gb&devcontainer_path=.devcontainer%2Fdevcontainer.json">
-    <img src="https://github.com/codespaces/badge.svg" alt="Open in GitHub Codespaces">
-  </a>
-</p>
+### Region Availability
 
-1. Click **Open in Codespaces**.  
-2. Provide these secrets when prompted:
+Azure OpenAI model support varies by region. Verify availability [here](https://learn.microsoft.com/azure/ai-services/openai/concepts/models#standard-deployment-model-availability) and choose the same region for all Azure resources. **eastus** and **swedencentral** are good default choices.
 
-   * `AzureWebJobsStorage`  
-   * `COSMOS_CONN`  
-   * `AZURE_OPENAI_ENDPOINT`  
-   * `AZURE_OPENAI_KEY`  
-   * `PROJECT_CONNECTION_STRING`
+### Costs
 
-3. Wait for the container to build; the terminal finishes with `func start` already running.  
-4. Test any endpoint from the **Ports** tab.
+Estimate monthly cost using the [Azure Pricing Calculator](https://azure.microsoft.com/pricing/calculator/). Major components:
 
----
+* Azure Functions – Consumption / Flex tiers
+* Cosmos DB – Serverless or provisioned throughput
+* Azure OpenAI – pay‑as‑you‑go per 1K tokens
+* Azure AI Agents – per‑execution billing (preview)
 
-## One-click Azure deploy (AZD)
+### Security
 
-```bash
-$ winget install Microsoft.Azure.DeveloperCLI      # or curl https://aka.ms/install-azd.sh | bash
-$ azd auth login
-$ azd up                                           # creates RG, Functions, Cosmos, OpenAI, AI Agents, App Insights
-```
+Snippy ships with connection‑string auth for simplicity. For production we recommend:
 
-The CLI prints the remote MCP SSE URL and function key when it finishes.
+* Enable **System‑Assigned Managed Identity** on the Function App
+* Grant the identity *Cosmos DB Built‑in Data Contributor* role
+* Store secrets (OpenAI key, Agents Project connection‑string) in **Azure Key Vault**
+* Restrict inbound traffic with Private Endpoints + VNet integration
 
 ---
 
-## REST endpoints
+## Resources
 
-```http
-POST /api/snippets              – save a snippet
-GET  /api/snippets/{name}       – fetch one
-POST /api/snippets/wiki         – generate wiki
-POST /api/snippets/code-style   – generate style guide
-```
-
----
-
-## Cleanup
-
-```bash
-# local
-Ctrl-C (stop Functions) ; deactivate ; rm -rf .venv local.settings.json
-
-# azd deployment
-$ azd down --purge
-```
+* Blog – *Build AI agent tools using Remote MCP with Azure Functions* ([https://aka.ms/snippy-blog](https://aka.ms/snippy-blog))
+* Model Context Protocol spec – [https://aka.ms/mcp](https://aka.ms/mcp)
+* Azure Functions Remote MCP docs – [https://aka.ms/azure-functions-mcp](https://aka.ms/azure-functions-mcp)
+* Develop Python apps for Azure AI – [https://learn.microsoft.com/azure/developer/python/azure-ai-for-python-developers](https://learn.microsoft.com/azure/developer/python/azure-ai-for-python-developers)
 
 ---
 
 ## Contributing
 
-Standard fork → branch → PR workflow. Use **Conventional Commits** (`feat: …`, `fix: …`) in your messages.
+Standard **fork → branch → PR** workflow. Use *Conventional Commits* (`feat:`, `fix:`) in commit messages.
 
 ---
 
 ## License
 
-MIT © Microsoft Corporation
+MIT © Microsoft Corporation
