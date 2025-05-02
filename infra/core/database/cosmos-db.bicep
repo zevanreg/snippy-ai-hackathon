@@ -25,6 +25,7 @@ resource account 'Microsoft.DocumentDB/databaseAccounts@2023-11-15' = {
     databaseAccountOfferType: 'Standard'
     capabilities: [
       { name: 'EnableServerless' }
+      { name: 'EnableNoSQLVectorSearch' }
     ]
     locations: [
       {
@@ -81,4 +82,4 @@ output accountName string = account.name
 output databaseName string = database.name
 output containerName string = container.name
 output documentEndpoint string = account.properties.documentEndpoint
-output connectionString string = 'AccountEndpoint=${account.properties.documentEndpoint};AccountKey=${listKeys(account.id, account.apiVersion).primaryMasterKey}' 
+output connectionString string = 'AccountEndpoint=${account.properties.documentEndpoint};AccountKey=${listKeys(account.id, account.apiVersion).primaryMasterKey}'

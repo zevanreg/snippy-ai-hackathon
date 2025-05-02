@@ -38,7 +38,7 @@ resource aiServices 'Microsoft.CognitiveServices/accounts@2025-04-01-preview' = 
   sku: {
     name: 'S0'
   }
-  kind: 'OpenAI'
+  kind: 'AIServices'
   identity: {
     type: 'SystemAssigned'
   }

@@ -160,6 +160,15 @@ module cosmosDb './core/database/cosmos-db.bicep' = {
   }
 }
 
+module keyVault './app/key-vault.bicep' = {
+  name: 'keyVault'
+  scope: rg
+  params: {
+    location: location
+    keyVaultName: '${abbrs.keyVaultVaults}${resourceToken}'
+  }
+}
+
 // Azure AI Hub and Project for code analysis
 module aiProject './core/ai/ai-project.bicep' = {
   name: 'aiProject'
@@ -170,9 +179,22 @@ module aiProject './core/ai/ai-project.bicep' = {
     aiHubName: '${abbrs.machineLearningServicesWorkspaces}hub-${resourceToken}'
     aiProjectName: '${abbrs.machineLearningServicesWorkspaces}proj-${resourceToken}'
     storageAccountId: storage.outputs.id
-    aiServicesId: openai.outputs.aiServicesId
+    keyVaultId: keyVault.outputs.keyVaultId
     aiServicesEndpoint: openai.outputs.aiServicesEndpoint
+    aiServicesId: openai.outputs.aiServicesId
     aiServicesName: openai.outputs.aiServicesName
+  }
+}
+
+// Allow access from api to AI Project
+var AzureAiDeveloper = '64702f94-c441-49e6-a78b-ef80e0188fee'
+module aiProjectRoleAssignmentApi 'app/ai-project-Access.bicep' = {
+  name: 'aiProjectRoleAssignmentApi'
+  scope: rg
+  params: {
+    aiProjectName: aiProject.outputs.aiProjectName
+    roleDefinitionId: AzureAiDeveloper
+    principalId: apiUserAssignedIdentity.outputs.identityPrincipalId
   }
 }
 
@@ -191,6 +213,7 @@ module api './app/api.bicep' = {
     deploymentStorageContainerName: deploymentStorageContainerName
     identityId: apiUserAssignedIdentity.outputs.identityId
     identityClientId: apiUserAssignedIdentity.outputs.identityClientId
+    aiServicesId: openai.outputs.aiServicesId
     appSettings: {
       COSMOS_CONN: cosmosDb.outputs.connectionString
       COSMOS_DATABASE_NAME: cosmosDb.outputs.databaseName
@@ -203,6 +226,7 @@ module api './app/api.bicep' = {
       AZURE_OPENAI_ENDPOINT: openai.outputs.aiServicesEndpoint
       PYTHON_ENABLE_WORKER_EXTENSIONS: '1'
       AzureWebJobsFeatureFlags: 'EnableWorkerIndexing'
+      AZURE_CLIENT_ID: apiUserAssignedIdentity.outputs.identityClientId
     }
   }
 }
