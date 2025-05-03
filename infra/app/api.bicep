@@ -14,6 +14,7 @@ param instanceMemoryMB int = 2048
 param maximumInstanceCount int = 100
 param identityId string = ''
 param identityClientId string = ''
+param aiServicesId string
 
 var applicationInsightsIdentity = 'ClientId=${identityClientId};Authorization=AAD'
 
@@ -29,6 +30,7 @@ module api '../core/host/functions-flexconsumption.bicep' = {
       {
         AzureWebJobsStorage__clientId : identityClientId
         APPLICATIONINSIGHTS_AUTHENTICATION_STRING: applicationInsightsIdentity
+        AZURE_OPENAI_KEY: listKeys(aiServicesId, '2025-04-01-preview').key1
       })
     applicationInsightsName: applicationInsightsName
     appServicePlanId: appServicePlanId

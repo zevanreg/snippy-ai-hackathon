@@ -25,6 +25,9 @@ param aiProjectDescription string = 'AI Project for Snippy code analysis'
 @description('Resource ID of the storage account')
 param storageAccountId string
 
+@description('Resource ID of the key vault')
+param keyVaultId string
+
 @description('Resource ID of the AI Services')
 param aiServicesId string
 
@@ -51,13 +54,14 @@ resource aiHub 'Microsoft.MachineLearningServices/workspaces@2025-01-01-preview'
     friendlyName: aiHubFriendlyName
     description: aiHubDescription
     storageAccount: storageAccountId
+    keyVault: keyVaultId
   }
   kind: 'hub'
 
   resource aiServicesConnection 'connections@2025-01-01-preview' = {
     name: '${aiHubName}-connection-AIServices'
     properties: {
-      category: 'AzureOpenAI'
+      category: 'AIServices'
       target: aiServicesEndpoint
       authType: 'ApiKey'
       credentials: {
