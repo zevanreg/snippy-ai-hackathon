@@ -231,12 +231,27 @@ module api './app/api.bicep' = {
   }
 }
 
-// App outputs
-output APPLICATIONINSIGHTS_CONNECTION_STRING string = monitoring.outputs.applicationInsightsConnectionString
-output AZURE_LOCATION string = location
-output AZURE_TENANT_ID string = tenant().tenantId
-output SERVICE_API_NAME string = api.outputs.SERVICE_API_NAME
-output AZURE_FUNCTION_NAME string = api.outputs.SERVICE_API_NAME
-output COSMOS_ENDPOINT string = cosmosDb.outputs.documentEndpoint
-output OPENAI_ENDPOINT string = openai.outputs.aiServicesEndpoint
+// ==================================
+// Outputs
+// ==================================
+// Define outputs needed specifically for configuring local.settings.json
+// Use 'azd env get-values' to retrieve these after provisioning.
+// WARNING: Secrets (Keys, Connection Strings) are output directly and will be visible in deployment history.
+// Output names directly match the corresponding keys in local.settings.json for easier mapping.
+
+@description('Cosmos DB connection string (includes key). Output name matches the COSMOS_CONN key in local settings.')
+output COSMOS_CONN string = cosmosDb.outputs.connectionString
+
+@description('Connection string for the Azure AI Project. Output name matches the PROJECT_CONNECTION_STRING key in local settings.')
 output PROJECT_CONNECTION_STRING string = aiProject.outputs.projectConnectionString
+
+@description('Endpoint for Azure OpenAI services. Output name matches the AZURE_OPENAI_ENDPOINT key in local settings.')
+output AZURE_OPENAI_ENDPOINT string = openai.outputs.azureOpenAIServiceEndpoint
+
+@description('Primary key for Azure OpenAI services. Output name matches the AZURE_OPENAI_KEY key in local settings.')
+// @secure() - issue with latest bicep version, set secure in cognitive services module
+output AZURE_OPENAI_KEY string = openai.outputs.primaryKey
+
+@description('Name of the deployed Azure Function App.')
+output AZURE_FUNCTION_NAME string = api.outputs.SERVICE_API_NAME // Function App Name
+

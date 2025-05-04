@@ -84,5 +84,9 @@ resource chatModelDeployment 'Microsoft.CognitiveServices/accounts/deployments@2
 output aiServicesName string = aiServices.name
 output aiServicesId string = aiServices.id
 output aiServicesEndpoint string = aiServices.properties.endpoint
+output azureOpenAIServiceEndpoint string = 'https://${aiServices.properties.customSubDomainName}.openai.azure.com/'
 output embeddingDeploymentName string = embeddingModelDeployment.name
 output chatDeploymentName string = chatModelDeployment.name 
+@description('Primary key for the AI Services account.')
+@secure()
+output primaryKey string = aiServices.listKeys().key1
