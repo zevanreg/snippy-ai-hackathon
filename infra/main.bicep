@@ -140,7 +140,7 @@ module openai './core/ai/cognitive-services.bicep' = {
   name: 'openai'
   scope: rg
   params: {
-    location: regionSelector.getCognitiveServicesRegion(location, chatModelName, embeddingModelName)
+    location: regionSelector.getAiServicesRegion(location, chatModelName, embeddingModelName)
     tags: tags
     chatModelName: chatModelName
     aiServicesName: '${abbrs.cognitiveServicesAccounts}${resourceToken}'
@@ -174,7 +174,7 @@ module aiProject './core/ai/ai-project.bicep' = {
   name: 'aiProject'
   scope: rg
   params: {
-    location: location
+    location: regionSelector.getAiServicesRegion(location, chatModelName, embeddingModelName)
     tags: tags
     aiHubName: '${abbrs.machineLearningServicesWorkspaces}hub-${resourceToken}'
     aiProjectName: '${abbrs.machineLearningServicesWorkspaces}proj-${resourceToken}'

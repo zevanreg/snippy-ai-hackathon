@@ -1,3 +1,6 @@
+func getAdjustedRegion(location string, map object) string =>
+  map.?overrides[?location] ?? (contains(map.?supportedRegions ?? [], location) ? location : (map.?default ?? location))
+
 // See https://learn.microsoft.com/azure/ai-services/openai/concepts/models#model-summary-table-and-region-availability
 var modelRegionMap = {
   'text-embedding-3-small': {
@@ -29,11 +32,31 @@ var modelRegionMap = {
   }
 }
 
-func getModelRegion(location string, modelName string) string => modelRegionMap[?modelName].?overrides[?location] ?? ( contains(modelRegionMap[?modelName].?supportedRegions ?? [], location) ? location : (modelRegionMap[?modelName].?default ?? location ))
+func getModelRegion(location string, modelName string) string => getAdjustedRegion(location, modelRegionMap[?modelName])
+
+func getCognitiveServicesRegion(location string, chatModelName string, embeddingModelName string) string =>
+  contains(modelRegionMap[?chatModelName].?supportedRegions, getModelRegion(location, embeddingModelName)) ? getModelRegion(getModelRegion(location, embeddingModelName), chatModelName): location
+
+// See https://learn.microsoft.com/azure/ai-services/agents/concepts/model-region-support#azure-openai-models
+// Currently supported regions:
+//    Australia East, East US, East US 2, France Central, Japan East, Norway East, South India, Sweden Central,
+//    UK South, West US, West US 3
+var agentServiceRegionMap = {
+  supportedRegions : [
+    'australiaeast', 'eastus', 'eastus2', 'francecentral',  'japaneast', 'norwayeast', 'southindia', 'swedencentral'
+    'uksouth', 'westus', 'westus3'
+  ]
+  overrides: {
+    westus2: 'westus'
+  }
+  default: 'westus'
+}
+
+func getAgentServiceRegion(location string) string => getAdjustedRegion(location, agentServiceRegionMap)
 
 @export()
 @description('Based on an intended region, gets a supported region for the specified embedding model.')
-func getCognitiveServicesRegion(location string, chatModelName string, embeddingModelName string) string => contains(modelRegionMap[?chatModelName].?supportedRegions, getModelRegion(location, embeddingModelName)) ? getModelRegion(getModelRegion(location, embeddingModelName), chatModelName): location
+func getAiServicesRegion(location string, chatModelName string, embeddingModelName string) string => getCognitiveServicesRegion(getAgentServiceRegion(location), chatModelName, embeddingModelName)
 
 // See https://learn.microsoft.com/azure/azure-functions/flex-consumption-how-to#view-currently-supported-regions
 // Currently supported regions: 
@@ -52,4 +75,4 @@ var flexConsumptionRegionMap = {
 
 @export()
 @description('Based on an intended region, gets a supported region for Flex Consumption.')
-func getFlexConsumptionRegion(location string) string => flexConsumptionRegionMap.?overrides[?location] ?? (contains(flexConsumptionRegionMap.?supportedRegions ?? [], location) ? location : (flexConsumptionRegionMap.?default ?? location))
+func getFlexConsumptionRegion(location string) string => getAdjustedRegion(location, flexConsumptionRegionMap)
