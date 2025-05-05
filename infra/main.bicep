@@ -22,7 +22,9 @@ param appServicePlanName string = ''
 param logAnalyticsName string = ''
 param resourceGroupName string = ''
 param storageAccountName string = ''
-param disableLocalAuth bool = true
+
+param cosmosDatabaseName string = 'snippy'
+param cosmosContainerName string = 'snippets'
 
 @allowed(['gpt-4o'])
 param chatModelName string = 'gpt-4o'
@@ -30,7 +32,7 @@ param chatModelName string = 'gpt-4o'
 @allowed(['text-embedding-3-small'])
 param embeddingModelName string = 'text-embedding-3-small'
 
-import * as regionSelector from './app/region-selector.bicep'
+import * as regionSelector from './app/util/region-selector.bicep'
 var abbrs = loadJsonContent('./abbreviations.json')
 
 var resourceToken = toLower(uniqueString(subscription().id, environmentName, location))
@@ -46,18 +48,18 @@ resource rg 'Microsoft.Resources/resourceGroups@2021-04-01' = {
 }
 
 // User assigned managed identity to be used by the function app
-module apiUserAssignedIdentity './core/identity/userAssignedIdentity.bicep' = {
+module apiUserAssignedIdentity 'br/public:avm/res/managed-identity/user-assigned-identity:0.4.1' = {
   name: 'apiUserAssignedIdentity'
   scope: rg
   params: {
     location: location
     tags: tags
-    identityName: !empty(apiUserAssignedIdentityName) ? apiUserAssignedIdentityName : '${abbrs.managedIdentityUserAssignedIdentities}api-${resourceToken}'
+    name: !empty(apiUserAssignedIdentityName) ? apiUserAssignedIdentityName : '${abbrs.managedIdentityUserAssignedIdentities}api-${resourceToken}'
   }
 }
 
 // The application backend is a function app
-module appServicePlan './core/host/appserviceplan.bicep' = {
+module appServicePlan 'br/public:avm/res/web/serverfarm:0.1.1' = {
   name: 'appserviceplan'
   scope: rg
   params: {
@@ -68,19 +70,29 @@ module appServicePlan './core/host/appserviceplan.bicep' = {
       name: 'FC1'
       tier: 'FlexConsumption'
     }
+    reserved: true
   }
 }
 
-// Backing storage for Azure functions api
-module storage './core/storage/storage-account.bicep' = {
+// Backing storage for Azure Functions api
+module storage 'br/public:avm/res/storage/storage-account:0.8.3' = {
   name: 'storage'
   scope: rg
   params: {
     name: !empty(storageAccountName) ? storageAccountName : '${abbrs.storageStorageAccounts}${resourceToken}'
     location: location
     tags: tags
-    containers: [{name: deploymentStorageContainerName}, {name: 'snippets'}]
+    blobServices: {
+      containers: [{name: deploymentStorageContainerName}, {name: 'snippets'}]
+    }
     publicNetworkAccess: 'Enabled'
+    networkAcls: {
+      bypass: 'AzureServices'
+      defaultAction: 'Allow'
+    }
+    allowBlobPublicAccess: false
+    allowSharedKeyAccess: false
+    minimumTlsVersion: 'TLS1_2'
   }
 }
 
@@ -88,29 +100,29 @@ var StorageBlobDataOwner = 'b7e6dc6d-f1e8-4753-8033-0f276bb0955b'
 var StorageQueueDataContributor = '974c5e8b-45b9-4653-ba55-5f855dd0fb88'
 
 // Allow access from api to blob storage using a managed identity
-module blobRoleAssignmentApi 'app/storage-Access.bicep' = {
+module blobRoleAssignmentApi 'app/rbac/storage-Access.bicep' = {
   name: 'blobRoleAssignmentapi'
   scope: rg
   params: {
     storageAccountName: storage.outputs.name
     roleDefinitionID: StorageBlobDataOwner
-    principalID: apiUserAssignedIdentity.outputs.identityPrincipalId
+    principalID: apiUserAssignedIdentity.outputs.principalId
   }
 }
 
 // Allow access from api to queue storage using a managed identity
-module queueRoleAssignmentApi 'app/storage-Access.bicep' = {
+module queueRoleAssignmentApi 'app/rbac/storage-Access.bicep' = {
   name: 'queueRoleAssignmentapi'
   scope: rg
   params: {
     storageAccountName: storage.outputs.name
     roleDefinitionID: StorageQueueDataContributor
-    principalID: apiUserAssignedIdentity.outputs.identityPrincipalId
+    principalID: apiUserAssignedIdentity.outputs.principalId
   }
 }
 
 // Monitor application with Azure Monitor
-module monitoring './core/monitor/monitoring.bicep' = {
+module monitoring 'app/monitoring.bicep' = {
   name: 'monitoring'
   scope: rg
   params: {
@@ -118,25 +130,24 @@ module monitoring './core/monitor/monitoring.bicep' = {
     tags: tags
     logAnalyticsName: !empty(logAnalyticsName) ? logAnalyticsName : '${abbrs.operationalInsightsWorkspaces}${resourceToken}'
     applicationInsightsName: !empty(applicationInsightsName) ? applicationInsightsName : '${abbrs.insightsComponents}${resourceToken}'
-    disableLocalAuth: disableLocalAuth  
   }
 }
 
-var monitoringRoleDefinitionId = '3913510d-42f4-4e42-8a64-420c390055eb' // Monitoring Metrics Publisher role ID
+var MonitoringMetricsPublisher = '3913510d-42f4-4e42-8a64-420c390055eb' // Monitoring Metrics Publisher role ID
 
 // Allow access from api to application insights using a managed identity
-module appInsightsRoleAssignmentApi './core/monitor/appinsights-access.bicep' = {
+module appInsightsRoleAssignmentApi './app/rbac/appinsights-access.bicep' = {
   name: 'appInsightsRoleAssignmentapi'
   scope: rg
   params: {
     appInsightsName: monitoring.outputs.applicationInsightsName
-    roleDefinitionID: monitoringRoleDefinitionId
-    principalID: apiUserAssignedIdentity.outputs.identityPrincipalId
+    roleDefinitionID: MonitoringMetricsPublisher
+    principalID: apiUserAssignedIdentity.outputs.principalId
   }
 }
 
 // Azure OpenAI for embeddings
-module openai './core/ai/cognitive-services.bicep' = {
+module openai './app/ai/cognitive-services.bicep' = {
   name: 'openai'
   scope: rg
   params: {
@@ -148,29 +159,67 @@ module openai './core/ai/cognitive-services.bicep' = {
   }
 }
 
+
+var CosmosDbDataContributor = '00000000-0000-0000-0000-000000000002'
+
 // Azure Cosmos DB for snippet storage
-module cosmosDb './core/database/cosmos-db.bicep' = {
+module cosmosDb 'br/public:avm/res/document-db/database-account:0.13.0' = {
   name: 'cosmosDb'
   scope: rg
   params: {
     location: location
     tags: tags
-    accountName: '${abbrs.documentDBDatabaseAccounts}${resourceToken}'
-    aiServicesName: openai.outputs.aiServicesName
-  }
-}
-
-module keyVault './app/key-vault.bicep' = {
-  name: 'keyVault'
-  scope: rg
-  params: {
-    location: location
-    keyVaultName: '${abbrs.keyVaultVaults}${resourceToken}'
+    databaseAccountOfferType: 'Standard'
+    name: '${abbrs.documentDBDatabaseAccounts}${resourceToken}'
+    capabilitiesToAdd: [
+      'EnableServerless'
+      'EnableNoSQLVectorSearch'
+    ]
+    locations: [
+      {
+        locationName: location
+        failoverPriority: 0
+        isZoneRedundant: false
+      }
+    ]
+    sqlDatabases: [
+      {
+        name: cosmosDatabaseName
+        containers: [
+          {
+            name: cosmosContainerName
+            paths: ['/name']
+            kind: 'Hash'
+            indexingPolicy: {
+              automatic: true
+              indexingMode: 'consistent'
+              includedPaths: [
+                {
+                  path: '/*'
+                }
+              ]
+              excludedPaths: [
+                {
+                  path: '/"_etag"/?'
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ]
+    sqlRoleAssignmentsPrincipalIds: [
+      apiUserAssignedIdentity.outputs.principalId
+    ]
+    sqlRoleDefinitions: [ { name: 'CosmosDbDataContributor' } ]
+    networkRestrictions: {
+      publicNetworkAccess: 'Enabled'
+    }
   }
 }
 
 // Azure AI Hub and Project for code analysis
-module aiProject './core/ai/ai-project.bicep' = {
+module aiProject './app/ai/ai-project.bicep' = {
   name: 'aiProject'
   scope: rg
   params: {
@@ -178,8 +227,8 @@ module aiProject './core/ai/ai-project.bicep' = {
     tags: tags
     aiHubName: '${abbrs.machineLearningServicesWorkspaces}hub-${resourceToken}'
     aiProjectName: '${abbrs.machineLearningServicesWorkspaces}proj-${resourceToken}'
-    storageAccountId: storage.outputs.id
-    keyVaultId: keyVault.outputs.keyVaultId
+    storageAccountId: storage.outputs.resourceId
+    keyVaultName: '${abbrs.keyVaultVaults}${resourceToken}'
     aiServicesEndpoint: openai.outputs.aiServicesEndpoint
     aiServicesId: openai.outputs.aiServicesId
     aiServicesName: openai.outputs.aiServicesName
@@ -188,13 +237,13 @@ module aiProject './core/ai/ai-project.bicep' = {
 
 // Allow access from api to AI Project
 var AzureAiDeveloper = '64702f94-c441-49e6-a78b-ef80e0188fee'
-module aiProjectRoleAssignmentApi 'app/ai-project-Access.bicep' = {
+module aiProjectRoleAssignmentApi 'app/rbac/ai-project-Access.bicep' = {
   name: 'aiProjectRoleAssignmentApi'
   scope: rg
   params: {
     aiProjectName: aiProject.outputs.aiProjectName
     roleDefinitionId: AzureAiDeveloper
-    principalId: apiUserAssignedIdentity.outputs.identityPrincipalId
+    principalId: apiUserAssignedIdentity.outputs.principalId
   }
 }
 
@@ -206,18 +255,18 @@ module api './app/api.bicep' = {
     location: regionSelector.getFlexConsumptionRegion(location)
     tags: tags
     applicationInsightsName: monitoring.outputs.applicationInsightsName
-    appServicePlanId: appServicePlan.outputs.id
+    appServicePlanId: appServicePlan.outputs.resourceId
     runtimeName: 'python'
     runtimeVersion: '3.11'
     storageAccountName: storage.outputs.name
     deploymentStorageContainerName: deploymentStorageContainerName
-    identityId: apiUserAssignedIdentity.outputs.identityId
-    identityClientId: apiUserAssignedIdentity.outputs.identityClientId
+    identityId: apiUserAssignedIdentity.outputs.resourceId
+    identityClientId: apiUserAssignedIdentity.outputs.clientId
     aiServicesId: openai.outputs.aiServicesId
     appSettings: {
-      COSMOS_CONN: cosmosDb.outputs.connectionString
-      COSMOS_DATABASE_NAME: cosmosDb.outputs.databaseName
-      COSMOS_CONTAINER_NAME: cosmosDb.outputs.containerName
+      COSMOS_ENDPOINT: cosmosDb.outputs.endpoint
+      COSMOS_DATABASE_NAME: cosmosDatabaseName
+      COSMOS_CONTAINER_NAME: cosmosContainerName
       BLOB_CONTAINER_NAME: 'snippet-backups'
       EMBEDDING_MODEL_DEPLOYMENT_NAME: openai.outputs.embeddingDeploymentName
       AGENTS_MODEL_DEPLOYMENT_NAME: 'gpt-4o'
@@ -226,7 +275,7 @@ module api './app/api.bicep' = {
       AZURE_OPENAI_ENDPOINT: openai.outputs.aiServicesEndpoint
       PYTHON_ENABLE_WORKER_EXTENSIONS: '1'
       AzureWebJobsFeatureFlags: 'EnableWorkerIndexing'
-      AZURE_CLIENT_ID: apiUserAssignedIdentity.outputs.identityClientId
+      AZURE_CLIENT_ID: apiUserAssignedIdentity.outputs.clientId
     }
   }
 }
@@ -239,8 +288,8 @@ module api './app/api.bicep' = {
 // WARNING: Secrets (Keys, Connection Strings) are output directly and will be visible in deployment history.
 // Output names directly match the corresponding keys in local.settings.json for easier mapping.
 
-@description('Cosmos DB connection string (includes key). Output name matches the COSMOS_CONN key in local settings.')
-output COSMOS_CONN string = cosmosDb.outputs.connectionString
+@description('Cosmos DB endpoint. Output name matches the COSMOS_ENDPOINT key in local settings.')
+output COSMOS_ENDPOINT string = cosmosDb.outputs.endpoint
 
 @description('Connection string for the Azure AI Project. Output name matches the PROJECT_CONNECTION_STRING key in local settings.')
 output PROJECT_CONNECTION_STRING string = aiProject.outputs.projectConnectionString
