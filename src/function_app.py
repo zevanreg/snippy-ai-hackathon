@@ -20,6 +20,8 @@ app = func.FunctionApp()
 _SNIPPET_NAME_PROPERTY_NAME = "snippetname"
 _SNIPPET_PROPERTY_NAME = "snippet"
 _PROJECT_ID_PROPERTY_NAME = "projectid"
+_CHAT_HISTORY_PROPERTY_NAME = "chathistory"
+_USER_QUERY_PROPERTY_NAME = "userquery"
 
 # Class to define properties for MCP tools
 # This helps validate and document the expected inputs for each tool
@@ -48,10 +50,14 @@ tool_properties_get_snippets = [
     ToolProperty(_SNIPPET_NAME_PROPERTY_NAME, "string", "The name of the snippet."),
 ]
 
-tool_properties_wiki = []  # No properties needed since we use vector search
+tool_properties_wiki = [
+    ToolProperty(_CHAT_HISTORY_PROPERTY_NAME, "string", "The chat history or chat session for context."),
+    ToolProperty(_USER_QUERY_PROPERTY_NAME, "string", "The user's query for wiki generation."),
+]
 
 tool_properties_code_style = [
-    ToolProperty(_SNIPPET_NAME_PROPERTY_NAME, "string", "The name of the snippet to analyze."),
+    ToolProperty(_CHAT_HISTORY_PROPERTY_NAME, "string", "The chat history or chat session for context."),
+    ToolProperty(_USER_QUERY_PROPERTY_NAME, "string", "The user's query for code style analysis."),
 ]
 
 # Convert tool properties to JSON for MCP tool registration
@@ -343,116 +349,6 @@ async def mcp_get_snippet(context) -> str:
         logging.error(f"Error in mcp_get_snippet: {str(e)}")
         return json.dumps({"error": str(e)})
 
-# HTTP trigger for deep research
-# This demonstrates integration with Azure AI Agents
-@app.route(route="snippets/{name}/research", methods=["POST"], auth_level=func.AuthLevel.FUNCTION)
-async def http_deep_research(req: func.HttpRequest) -> func.HttpResponse:
-    """
-    HTTP trigger function to perform deep research on a code snippet.
-    This function demonstrates:
-    1. HTTP trigger with route parameters
-    2. Azure AI Agents integration
-    3. Cosmos DB document retrieval
-    4. Error handling and validation
-    
-    Args:
-        req: The HTTP request containing the snippet name in the route
-        
-    Returns:
-        HTTP response with the research results
-    """
-    try:
-        # Extract the snippet name from the route parameters
-        name = req.route_params.get("name")
-        if not name:
-            return func.HttpResponse(
-                body=json.dumps({"error": "Missing snippet name in route"}),
-                mimetype="application/json",
-                status_code=400
-            )
-        
-        # Get snippet from Cosmos DB
-        # This demonstrates document retrieval from Cosmos DB
-        snippet = await cosmos_ops.get_snippet_by_id(name)
-        if not snippet:
-            return func.HttpResponse(
-                body=json.dumps({"error": f"Snippet '{name}' not found"}),
-                mimetype="application/json",
-                status_code=404
-            )
-        
-        # Perform research using AI agent
-        # This demonstrates Azure AI Agents integration
-        research_results = await deep_wiki.perform_research(snippet["code"], [])
-        
-        return func.HttpResponse(
-            body=json.dumps({"research": research_results}),
-            mimetype="application/json",
-            status_code=200
-        )
-    except Exception as e:
-        logging.error(f"Error in http_deep_research: {str(e)}")
-        return func.HttpResponse(
-            body=json.dumps({"error": str(e)}),
-            mimetype="application/json",
-            status_code=500
-        )
-
-# MCP tool trigger for deep research
-# This demonstrates integration with Azure AI Agents through MCP
-@app.generic_trigger(
-    arg_name="context",
-    type="mcpToolTrigger",
-    toolName="deep_research",
-    description="Perform deep research on a code snippet.",
-    toolProperties=tool_properties_wiki_json,
-)
-async def mcp_deep_research(context) -> str:
-    """
-    MCP tool trigger function to perform deep research on a code snippet.
-    This function demonstrates:
-    1. MCP tool trigger binding
-    2. Azure AI Agents integration
-    3. Cosmos DB document retrieval
-    4. Error handling and validation
-    
-    Args:
-        context: The MCP tool context containing the snippet name
-        
-    Returns:
-        JSON string with the research results
-    """
-    try:
-        # Parse the incoming context string
-        # MCP tools pass data through a context object
-        mcp_data = json.loads(context)
-        
-        # Extract the snippet name from the MCP context
-        name = mcp_data["arguments"][_SNIPPET_NAME_PROPERTY_NAME]
-        if not name:
-            return json.dumps({"error": "Missing snippet name in MCP context"})
-        
-        # Get snippet from Cosmos DB
-        # This demonstrates document retrieval from Cosmos DB
-        snippet = await cosmos_ops.get_snippet_by_id(name)
-        if not snippet:
-            return json.dumps({"error": f"Snippet '{name}' not found"})
-        
-        # Perform research using AI agent
-        # This demonstrates Azure AI Agents integration
-        research_results = await deep_wiki.perform_research(snippet["code"], [])
-        
-        return json.dumps({"research": research_results})
-    except json.JSONDecodeError:
-        logging.error(f"Failed to decode JSON from MCP context: {context}")
-        return json.dumps({"error": "Invalid JSON received in context"})
-    except KeyError as e:
-        logging.error(f"Missing key in parsed MCP context: {e}")
-        return json.dumps({"error": f"Missing expected argument: {e}"})
-    except Exception as e:
-        logging.error(f"Error in mcp_deep_research: {str(e)}")
-        return json.dumps({"error": str(e)})
-
 # HTTP trigger for code style
 # This demonstrates integration with Azure AI Agents
 @app.route(route="snippets/code-style", methods=["POST"], auth_level=func.AuthLevel.FUNCTION)
@@ -465,7 +361,7 @@ async def http_code_style(req: func.HttpRequest) -> func.HttpResponse:
     3. Error handling and logging
     
     Args:
-        req: The HTTP request
+        req: The HTTP request containing chat history and user query
         
     Returns:
         HTTP response with the code style guide
@@ -473,9 +369,24 @@ async def http_code_style(req: func.HttpRequest) -> func.HttpResponse:
     try:
         logging.info("Starting code style generation using AI agent")
         
+        # Parse the request body
+        req_body = req.get_json()
+        
+        # Validate required fields
+        required_fields = ["chatHistory", "userQuery"]
+        for field in required_fields:
+            if field not in req_body:
+                return func.HttpResponse(
+                    body=json.dumps({"error": f"Missing required field: {field}"}),
+                    mimetype="application/json",
+                    status_code=400
+                )
+        
         # Generate code style guide using AI agent
-        # This demonstrates Azure AI Agents integration
-        style_guide = await code_style.generate_code_style()
+        style_guide = await code_style.generate_code_style(
+            chat_history=req_body["chatHistory"],
+            user_query=req_body["userQuery"]
+        )
         logging.info("Successfully generated code style guide")
         
         return func.HttpResponse(
@@ -498,7 +409,7 @@ async def http_code_style(req: func.HttpRequest) -> func.HttpResponse:
     type="mcpToolTrigger",
     toolName="code_style",
     description="Generate a code style guide using an AI agent.",
-    toolProperties=json.dumps([]),  # No properties needed since we use AI agent
+    toolProperties=tool_properties_code_style_json,
 )
 async def mcp_code_style(context) -> str:
     """
@@ -509,7 +420,7 @@ async def mcp_code_style(context) -> str:
     3. Error handling and logging
     
     Args:
-        context: The MCP tool context (unused)
+        context: The MCP tool context containing chat history and user query
         
     Returns:
         JSON string with the code style guide
@@ -517,12 +428,27 @@ async def mcp_code_style(context) -> str:
     try:
         logging.info("Starting MCP code style generation using AI agent")
         
+        # Parse the incoming context string
+        mcp_data = json.loads(context)
+        
+        # Extract required fields from the MCP context
+        chat_history = mcp_data["arguments"][_CHAT_HISTORY_PROPERTY_NAME]
+        user_query = mcp_data["arguments"][_USER_QUERY_PROPERTY_NAME]
+        
         # Generate code style guide using AI agent
-        # This demonstrates Azure AI Agents integration
-        style_guide = await code_style.generate_code_style()
+        style_guide = await code_style.generate_code_style(
+            chat_history=chat_history,
+            user_query=user_query
+        )
         logging.info("Successfully generated code style guide")
         
         return json.dumps({"styleGuide": style_guide})
+    except json.JSONDecodeError:
+        logging.error(f"Failed to decode JSON from MCP context: {context}")
+        return json.dumps({"error": "Invalid JSON received in context"})
+    except KeyError as e:
+        logging.error(f"Missing key in parsed MCP context: {e}")
+        return json.dumps({"error": f"Missing expected argument: {e}"})
     except Exception as e:
         logging.error(f"Error in mcp_code_style: {str(e)}", exc_info=True)
         return json.dumps({"error": str(e)})
@@ -538,14 +464,30 @@ async def http_deep_wiki(req: func.HttpRequest) -> func.HttpResponse:
     4. Error handling and validation
     
     Args:
-        req: The HTTP request
+        req: The HTTP request containing chat history and user query
         
     Returns:
         HTTP response with the generated wiki documentation
     """
     try:
+        # Parse the request body
+        req_body = req.get_json()
+        
+        # Validate required fields
+        required_fields = ["chatHistory", "userQuery"]
+        for field in required_fields:
+            if field not in req_body:
+                return func.HttpResponse(
+                    body=json.dumps({"error": f"Missing required field: {field}"}),
+                    mimetype="application/json",
+                    status_code=400
+                )
+        
         # Generate wiki documentation
-        wiki_content = await deep_wiki.generate_deep_wiki()
+        wiki_content = await deep_wiki.generate_deep_wiki(
+            chat_history=req_body["chatHistory"],
+            user_query=req_body["userQuery"]
+        )
         
         return func.HttpResponse(
             body=wiki_content,
@@ -564,12 +506,12 @@ async def http_deep_wiki(req: func.HttpRequest) -> func.HttpResponse:
     arg_name="context",
     type="mcpToolTrigger",
     toolName="deep_wiki",
-    description="Generate comprehensive wiki documentation for all code snippets.",
-    toolProperties=json.dumps([]),  # No properties needed since we use vector search
+    description="Generates comprehensive wiki documentation (deep wiki) for all code snippets.",
+    toolProperties=tool_properties_wiki_json,
 )
 async def mcp_deep_wiki(context) -> str:
     """
-    MCP tool trigger function to generate wiki documentation for all code snippets.
+    MCP tool trigger function to generate wiki documentation (deep wiki) for all code snippets.
     This function demonstrates:
     1. MCP tool trigger binding
     2. Azure AI Agents for documentation generation
@@ -577,16 +519,32 @@ async def mcp_deep_wiki(context) -> str:
     4. Error handling and validation
     
     Args:
-        context: The MCP tool context
+        context: The MCP tool context containing chat history and user query
         
     Returns:
         JSON string with the generated wiki documentation
     """
     try:
+        # Parse the incoming context string
+        mcp_data = json.loads(context)
+        
+        # Extract required fields from the MCP context
+        chat_history = mcp_data["arguments"][_CHAT_HISTORY_PROPERTY_NAME]
+        user_query = mcp_data["arguments"][_USER_QUERY_PROPERTY_NAME]
+        
         # Generate wiki documentation
-        wiki_content = await deep_wiki.generate_deep_wiki()
+        wiki_content = await deep_wiki.generate_deep_wiki(
+            chat_history=chat_history,
+            user_query=user_query
+        )
         
         return wiki_content
+    except json.JSONDecodeError:
+        logging.error(f"Failed to decode JSON from MCP context: {context}")
+        return json.dumps({"error": "Invalid JSON received in context"})
+    except KeyError as e:
+        logging.error(f"Missing key in parsed MCP context: {e}")
+        return json.dumps({"error": f"Missing expected argument: {e}"})
     except Exception as e:
         logging.error(f"Error in mcp_deep_wiki: {str(e)}")
         return json.dumps({"error": str(e)})

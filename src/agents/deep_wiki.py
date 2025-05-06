@@ -69,30 +69,45 @@ Style Rules:
 Return only the final Markdown document, no additional commentary.
 """
 
-async def generate_deep_wiki() -> str:
+async def generate_deep_wiki(chat_history: str = "", user_query: str = "") -> str:
     """
     Generates a comprehensive wiki documentation for the codebase.
     Uses vector search to gather relevant code snippets and generates
     a complete wiki.md document.
     
+    Args:
+        chat_history: The chat history or session for context
+        user_query: The user's query for wiki generation
+    
     Returns:
         The wiki documentation as a markdown string
     """
     try:
+        # Log input parameters
+        logger.info("Starting wiki generation with:")
+        logger.info("Chat history length: %d characters", len(chat_history))
+        if chat_history:
+            logger.info("Chat history preview: %s", chat_history[:200] + "..." if len(chat_history) > 200 else chat_history)
+        logger.info("User query: %s", user_query)
+        
         # Log the system prompt for debugging and transparency
         logger.info("System prompt:\n%s", _DEEP_WIKI_SYSTEM_PROMPT)
         
         # Create an Azure credential for authentication
+        logger.info("Initializing Azure authentication")
         async with DefaultAzureCredential() as credential:
             # Connect to the Azure AI Project that hosts our agent
+            logger.info("Connecting to Azure AI Project")
             async with AIProjectClient.from_connection_string(
                 credential=credential,
                 conn_str=os.environ["PROJECT_CONNECTION_STRING"]
             ) as project_client:
                 # Create the vector search tool that the agent will use
+                logger.info("Setting up vector search tool")
                 functions = AsyncFunctionTool(functions=[vector_search.vector_search])
                 
                 # Create the agent with its personality and tools
+                logger.info("Creating DeepWiki agent with model: %s", os.environ["AGENTS_MODEL_DEPLOYMENT_NAME"])
                 agent = await project_client.agents.create_agent(
                     name="DeepWikiAgent",
                     description="An agent that generates comprehensive wiki documentation",
@@ -103,14 +118,29 @@ async def generate_deep_wiki() -> str:
                 logger.info("Created agent: %s with tool: vector_search", agent.name)
                 
                 # Create a conversation thread for the agent
+                logger.info("Creating conversation thread")
                 thread = await project_client.agents.create_thread()
+                
+                # Add chat history if provided
+                if chat_history:
+                    logger.info("Adding chat history to thread")
+                    await project_client.agents.create_message(
+                        thread_id=thread.id,
+                        role="user",
+                        content=chat_history
+                    )
+                
+                # Add the user's query or default message
+                final_query = user_query if user_query else "Generate a comprehensive wiki documentation."
+                logger.info("Adding user query to thread: %s", final_query)
                 await project_client.agents.create_message(
                     thread_id=thread.id,
                     role="user",
-                    content="Generate a comprehensive wiki documentation."
+                    content=final_query
                 )
                 
                 # Start the agent's execution
+                logger.info("Starting agent execution")
                 run = await project_client.agents.create_run(
                     thread_id=thread.id,
                     agent_id=agent.id
@@ -120,17 +150,26 @@ async def generate_deep_wiki() -> str:
                 tool_call_count = 0
                 while True:
                     run = await project_client.agents.get_run(thread_id=thread.id, run_id=run.id)
+                    logger.info("Agent run status: %s", run.status)
+                    
                     if run.status == "completed":
+                        logger.info("Agent run completed successfully")
                         break
                     elif run.status == "failed":
+                        logger.error("Agent run failed with status: %s", run.status)
                         raise Exception("Agent run failed")
                     elif run.status == "requires_action":
                         # Handle tool calls from the agent
                         tool_calls = run.required_action.submit_tool_outputs.tool_calls
+                        logger.info("Agent requires action with %d tool calls", len(tool_calls))
                         tool_outputs = []
                         for tool_call in tool_calls:
-                            logger.info("Agent %s calling tool: %s", agent.name, tool_call.function.name)
+                            logger.info("Agent %s calling tool: %s with arguments: %s", 
+                                      agent.name, 
+                                      tool_call.function.name,
+                                      tool_call.function.arguments)
                             output = await functions.execute(tool_call)
+                            logger.info("Tool call completed with output length: %d", len(str(output)))
                             tool_outputs.append({
                                 "tool_call_id": tool_call.id,
                                 "output": output
@@ -143,12 +182,13 @@ async def generate_deep_wiki() -> str:
                         )
                 
                 # Get the final response from the agent
+                logger.info("Retrieving final response from agent")
                 messages = await project_client.agents.list_messages(thread_id=thread.id)
                 response = str(messages.data[0].content[0].text.value)
-                logger.info("Wiki documentation generated by %s (%d tool calls):\n%s", 
-                          agent.name, tool_call_count, response)
+                logger.info("Wiki documentation generated by %s (%d tool calls). Response length: %d", 
+                          agent.name, tool_call_count, len(response))
                 return response
                 
     except Exception as e:
-        logger.error("Wiki generation failed: %s", str(e), exc_info=True)
+        logger.error("Wiki generation failed with error: %s", str(e), exc_info=True)
         raise 
