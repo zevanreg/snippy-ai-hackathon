@@ -4,7 +4,7 @@ param location string = resourceGroup().location
 param tags object = {}
 param disableLocalAuth bool = false
 
-module logAnalytics 'loganalytics.bicep' = {
+module logAnalytics 'br/public:avm/res/operational-insights/workspace:0.7.0' = {
   name: 'loganalytics'
   params: {
     name: logAnalyticsName
@@ -13,13 +13,13 @@ module logAnalytics 'loganalytics.bicep' = {
   }
 }
 
-module applicationInsights 'applicationinsights.bicep' = {
+module applicationInsights 'br/public:avm/res/insights/component:0.4.1'  = {
   name: 'applicationinsights'
   params: {
     name: applicationInsightsName
     location: location
     tags: tags
-    logAnalyticsWorkspaceId: logAnalytics.outputs.id
+    workspaceResourceId: logAnalytics.outputs.resourceId
     disableLocalAuth: disableLocalAuth
   }
 }
@@ -27,5 +27,5 @@ module applicationInsights 'applicationinsights.bicep' = {
 output applicationInsightsConnectionString string = applicationInsights.outputs.connectionString
 output applicationInsightsInstrumentationKey string = applicationInsights.outputs.instrumentationKey
 output applicationInsightsName string = applicationInsights.outputs.name
-output logAnalyticsWorkspaceId string = logAnalytics.outputs.id
+output logAnalyticsWorkspaceId string = logAnalytics.outputs.resourceId
 output logAnalyticsWorkspaceName string = logAnalytics.outputs.name

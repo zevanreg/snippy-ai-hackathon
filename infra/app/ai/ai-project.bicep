@@ -25,9 +25,6 @@ param aiProjectDescription string = 'AI Project for Snippy code analysis'
 @description('Resource ID of the storage account')
 param storageAccountId string
 
-@description('Resource ID of the key vault')
-param keyVaultId string
-
 @description('Resource ID of the AI Services')
 param aiServicesId string
 
@@ -37,6 +34,18 @@ param aiServicesEndpoint string
 @description('AI Services name')
 param aiServicesName string
 
+@description('key vault name')
+param keyVaultName string
+
+
+module keyVault 'br/public:avm/res/key-vault/vault:0.12.1' = {
+  name: 'keyVault'
+  scope: resourceGroup()
+  params: {
+    location: location
+    name: keyVaultName
+  }
+}
 
 resource aiServices 'Microsoft.CognitiveServices/accounts@2025-04-01-preview' existing = {
   name: aiServicesName
@@ -54,7 +63,7 @@ resource aiHub 'Microsoft.MachineLearningServices/workspaces@2025-01-01-preview'
     friendlyName: aiHubFriendlyName
     description: aiHubDescription
     storageAccount: storageAccountId
-    keyVault: keyVaultId
+    keyVault: keyVault.outputs.resourceId
   }
   kind: 'hub'
 
