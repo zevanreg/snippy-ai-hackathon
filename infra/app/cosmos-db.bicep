@@ -8,13 +8,12 @@ param tags object
 param accountName string
 
 @description('Database name')
-param databaseName string = 'snippy'
+param databaseName string
 
 @description('Container name for snippets')
-param containerName string = 'snippets'
+param containerName string
 
-@description('AI Services name')
-param aiServicesName string
+param dataContributorIdentityIds string[] = []
 
 resource account 'Microsoft.DocumentDB/databaseAccounts@2023-11-15' = {
   name: accountName
@@ -48,7 +47,7 @@ resource database 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases@2023-11-15
   }
 }
 
-resource container 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2023-11-15' = {
+resource container 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2024-11-15' = {
   parent: database
   name: containerName
   properties: {
@@ -73,13 +72,40 @@ resource container 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/container
             path: '/"_etag"/?'
           }
         ]
+        vectorIndexes: [
+          {
+            path: '/embedding'
+            type: 'diskANN'
+          }
+        ]
+      }
+      vectorEmbeddingPolicy: {
+        vectorEmbeddings: [
+          {
+            path: '/embedding'
+            distanceFunction: 'cosine'
+            dataType: 'float32'
+            dimensions: 1536
+          }
+        ]
       }
     }
   }
 }
 
+var CosmosDbDataContributor = '00000000-0000-0000-0000-000000000002'
+
+resource assignment 'Microsoft.DocumentDB/databaseAccounts/sqlRoleAssignments@2024-05-15' = [for identityId in dataContributorIdentityIds: {
+  name: guid(CosmosDbDataContributor, identityId, account.id)
+  parent: account
+  properties: {
+    principalId: identityId
+    roleDefinitionId: '${subscription().id}/resourceGroups/${resourceGroup().name}/providers/Microsoft.DocumentDB/databaseAccounts/${accountName}/sqlRoleDefinitions/${CosmosDbDataContributor}'
+    scope: account.id
+  }
+}]
+
 output accountName string = account.name
 output databaseName string = database.name
 output containerName string = container.name
 output documentEndpoint string = account.properties.documentEndpoint
-output connectionString string = 'AccountEndpoint=${account.properties.documentEndpoint};AccountKey=${listKeys(account.id, account.apiVersion).primaryMasterKey}'

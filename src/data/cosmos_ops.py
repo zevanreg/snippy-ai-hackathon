@@ -9,6 +9,7 @@ import logging
 from azure.cosmos.aio import CosmosClient
 from azure.cosmos import PartitionKey
 from azure.cosmos.exceptions import CosmosResourceNotFoundError
+from azure.identity.aio import DefaultAzureCredential
 
 # Configure logging for this module
 logger = logging.getLogger(__name__)
@@ -32,7 +33,10 @@ async def get_cosmos_client():
     global _cosmos_client
     if _cosmos_client is None:
         logger.debug("Creating Cosmos client")
-        _cosmos_client = CosmosClient.from_connection_string(os.environ["COSMOS_CONN"])
+        _cosmos_client = CosmosClient(
+            url=os.environ["COSMOS_ENDPOINT"],
+            credential=DefaultAzureCredential()
+        )
     return _cosmos_client
 
 # Gets or creates the singleton Cosmos database reference
