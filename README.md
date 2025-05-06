@@ -61,12 +61,12 @@ The project ships with reproducible **azd** infrastructure, so `azd up` will st
 
 ### Tool Matrix
 
-| Tool Name      | Purpose                                                             | MCP Type |
-| -------------- | ------------------------------------------------------------------- | -------- |
-| `save_snippet` | Save code, embed via Functions ↔ OpenAI binding, upsert into Cosmos | action   |
-| `get_snippet`  | Fetch snippet by id                                                 | action   |
-| `deep_wiki`    | Generate Markdown wiki from vector search results                   | task     |
-| `code_style`   | Produce language‑specific style guide                               | task     |
+| Tool Name      | Purpose                                                             |
+| -------------- | ------------------------------------------------------------------- |
+| `save_snippet` | Save code snippets with vector embeddings for semantic search       |
+| `get_snippet`  | Retrieve previously saved code snippets by their unique name        |
+| `code_style`   | Generate language-specific code style guides from saved snippets    |
+| `deep_wiki`    | Create comprehensive wiki documentation by analyzing code snippets  |
 
 ---
 
@@ -196,12 +196,18 @@ Estimate monthly cost using the [Azure Pricing Calculator](https://azure.microso
 
 ### Security
 
-Snippy ships with connection‑string auth for simplicity. For production we recommend:
+Snippy uses User-Assigned Managed Identity for secure service-to-service authentication. The infrastructure is configured with:
 
-* Enable **System‑Assigned Managed Identity** on the Function App
-* Grant the identity *Cosmos DB Built‑in Data Contributor* role
-* Store secrets (OpenAI key, Agents Project connection‑string) in **Azure Key Vault**
-* Restrict inbound traffic with Private Endpoints + VNet integration
+* **User-Assigned Managed Identity** on the Function App with appropriate RBAC roles:
+  * Cosmos DB Data Contributor
+  * Storage Blob Data Owner and Queue Data Contributor
+  * Application Insights Monitoring Metrics Publisher
+  * Azure AI Project Developer
+
+For production deployments, we recommend:
+
+* Restrict inbound traffic with Private Endpoints + VNet integration
+* Enable network security features like service endpoints and firewall rules
 
 ---
 
