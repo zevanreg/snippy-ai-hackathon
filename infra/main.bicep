@@ -18,13 +18,12 @@ param location string
 param apiServiceName string = ''
 param apiUserAssignedIdentityName string = ''
 param applicationInsightsName string = ''
-param appServicePlanName string = ''
 param logAnalyticsName string = ''
 param resourceGroupName string = ''
 param storageAccountName string = ''
 
-param cosmosDatabaseName string = 'snippy'
-param cosmosContainerName string = 'snippets'
+param cosmosDatabaseName string = 'dev-snippet-db'
+param cosmosContainerName string = 'code-snippets'
 
 @allowed(['gpt-4o'])
 param chatModelName string = 'gpt-4o'
@@ -55,22 +54,6 @@ module apiUserAssignedIdentity 'br/public:avm/res/managed-identity/user-assigned
     location: location
     tags: tags
     name: !empty(apiUserAssignedIdentityName) ? apiUserAssignedIdentityName : '${abbrs.managedIdentityUserAssignedIdentities}api-${resourceToken}'
-  }
-}
-
-// The application backend is a function app
-module appServicePlan 'br/public:avm/res/web/serverfarm:0.1.1' = {
-  name: 'appserviceplan'
-  scope: rg
-  params: {
-    name: !empty(appServicePlanName) ? appServicePlanName : '${abbrs.webServerFarms}${resourceToken}'
-    location: regionSelector.getFlexConsumptionRegion(location)
-    tags: tags
-    sku: {
-      name: 'FC1'
-      tier: 'FlexConsumption'
-    }
-    reserved: true
   }
 }
 
@@ -204,14 +187,16 @@ module cosmosDb 'br/public:avm/res/document-db/database-account:0.13.0' = {
                 }
               ]
             }
+            
           }
         ]
       }
     ]
     sqlRoleAssignmentsPrincipalIds: [
       apiUserAssignedIdentity.outputs.principalId
+      deployer().objectId // For demo/lab purposes only, remove in production
     ]
-    sqlRoleDefinitions: [ { name: 'CosmosDbDataContributor' } ]
+    sqlRoleDefinitions: [ { name: CosmosDbDataContributor } ]
     networkRestrictions: {
       publicNetworkAccess: 'Enabled'
     }
@@ -254,10 +239,8 @@ module api './app/api.bicep' = {
     name: functionAppName
     location: regionSelector.getFlexConsumptionRegion(location)
     tags: tags
+    resourceToken: resourceToken
     applicationInsightsName: monitoring.outputs.applicationInsightsName
-    appServicePlanId: appServicePlan.outputs.resourceId
-    runtimeName: 'python'
-    runtimeVersion: '3.11'
     storageAccountName: storage.outputs.name
     deploymentStorageContainerName: deploymentStorageContainerName
     identityId: apiUserAssignedIdentity.outputs.resourceId
@@ -273,11 +256,15 @@ module api './app/api.bicep' = {
       COSMOS_VECTOR_TOP_K: '30'
       PROJECT_CONNECTION_STRING: aiProject.outputs.projectConnectionString
       AZURE_OPENAI_ENDPOINT: openai.outputs.aiServicesEndpoint
-      PYTHON_ENABLE_WORKER_EXTENSIONS: '1'
-      AzureWebJobsFeatureFlags: 'EnableWorkerIndexing'
       AZURE_CLIENT_ID: apiUserAssignedIdentity.outputs.clientId
     }
   }
+  dependsOn: [
+    blobRoleAssignmentApi
+    queueRoleAssignmentApi
+    appInsightsRoleAssignmentApi
+    aiProjectRoleAssignmentApi
+  ]
 }
 
 // ==================================
