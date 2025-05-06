@@ -1,7 +1,7 @@
 <!--
 ---
 name: Snippy - Intelligent Code Snippet Service with MCP Tools
-description: A serverless code snippet management service using Azure Functions, Durable Functions, Azure OpenAI, and Azure AI Agents.
+description: A serverless code snippet management service using Azure Functions, Durable Functions, Azure OpenAI, Microsoft Fabric and Azure AI Agents.
 page_type: sample
 languages:
 - python
@@ -14,6 +14,7 @@ products:
 - azure-cosmos-db
 - azure-ai-projects
 - azure-ai-agents
+- fabric
 urlFragment: snippy
 ---
 -->
@@ -32,8 +33,10 @@ Snippy is an **Azure Functions**–based reference application that turns any fu
 
 * **Save snippets** – persists code, metadata and OpenAI embeddings in **Cosmos DB DiskANN**
 * **Semantic retrieve** – vector search over embeddings
-* **AI Agents** – generate a deep wiki or language‑specific style guide from stored snippets
+* **AI Agents** – generate a **deep wiki** or language‑specific **code style guide** from stored snippets
 * **Durable fan‑out/fan‑in with Blueprints** – [in experimental branch](https://github.com/Azure-Samples/snippy/tree/gk/durable-functions) for large‑scale processing
+* **Microsoft Fabric integration** – [in gk/fabric branch](https://github.com/Azure-Samples/snippy/tree/gk/fabric) demonstrating how to build Agents with Fabric Data Agents
+
 
 The project ships with reproducible **azd** infrastructure, so `azd up` will stand up the entire stack – Functions, Cosmos DB, Azure OpenAI and Azure AI Agents – in a single command.
 
@@ -72,22 +75,43 @@ The project ships with reproducible **azd** infrastructure, so `azd up` will st
 ![Snippy Architecture](https://raw.githubusercontent.com/Azure-Samples/snippy/main/.github/assets/snippy-architecture.png)
 
 ```mermaid
-graph TD
-  User[Human / Copilot Chat] -->|HTTP / MCP| FnApp[Azure Functions\nSnippy]
+flowchart LR
+    %% ─── MCP Hosts & Clients (local) ──────────────────────────────
+    subgraph mcphosts["MCP Hosts & Clients (Your Computer)"]
+        Host["Host<br/>(VS Code / IDE)"]
+        Client["Client<br/>(GitHub Copilot)"]
+    end
 
-  subgraph Functions
-    Save[save_snippet] -- embeddings --> AOAI
-    Save -- JSON --> Cosmos
-    Get[get_snippet] --> Cosmos
-    Wiki[deep_wiki] -- vector search --> Cosmos
-    Wiki --> Agents
-    Style[code_style] -- vector search --> Cosmos
-    Style --> Agents
-  end
+    %% ─── Application on Azure (remote) ────────────────────────────
+    subgraph app["Application (Azure)"]
+        Snippy["MCP Server<br/>Snippy Triggers<br/>(Function App)"]:::dashed
+        Foundry["Foundry Agent<br/>Deep Wiki · Code Style"]
+        Cosmos["Cosmos DB<br/>Operational + Vector DB"]:::datasource
+        AOAI["Azure OpenAI<br/>text‑embedding‑3‑small"]
+        FabricDA["Fabric – Data Agent"]
+        VectorTool["Tools – Vector Search"]
+    end
 
-  AOAI[Azure OpenAI]
-  Cosmos[(Cosmos DB DiskANN)]
-  Agents[Azure AI Agents]
+    %% ─── Local interactions ───────────────────────────────────────
+    Host <--> Client
+
+    %% ─── MCP protocol to Azure ────────────────────────────────────
+    Client <-- "MCP Protocol (SSE)" --> Snippy
+
+    %% ─── Bindings & data flow inside Azure ────────────────────────
+    Snippy -- Bindings --> AOAI
+    Snippy --> Cosmos
+    Snippy --> Foundry
+    Foundry --> FabricDA
+    Foundry --> VectorTool
+
+    %% ─── Styling ──────────────────────────────────────────────────
+    classDef datasource stroke-width:2,stroke-dasharray:5 5
+    classDef dashed stroke-width:2,stroke-dasharray:5 5,fill:transparent
+    class Cosmos datasource
+    class Snippy dashed
+    style mcphosts fill:transparent
+    style app fill:transparent
 ```
 
 ---
