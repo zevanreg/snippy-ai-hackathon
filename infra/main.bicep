@@ -143,65 +143,25 @@ module openai './app/ai/cognitive-services.bicep' = {
 }
 
 
-var CosmosDbDataContributor = '00000000-0000-0000-0000-000000000002'
+
 
 // Azure Cosmos DB for snippet storage
-module cosmosDb 'br/public:avm/res/document-db/database-account:0.13.0' = {
+module cosmosDb './app/cosmos-db.bicep' = {
   name: 'cosmosDb'
   scope: rg
-  params: {
+  params: { 
     location: location
     tags: tags
-    databaseAccountOfferType: 'Standard'
-    name: '${abbrs.documentDBDatabaseAccounts}${resourceToken}'
-    capabilitiesToAdd: [
-      'EnableServerless'
-      'EnableNoSQLVectorSearch'
-    ]
-    locations: [
-      {
-        locationName: location
-        failoverPriority: 0
-        isZoneRedundant: false
-      }
-    ]
-    sqlDatabases: [
-      {
-        name: cosmosDatabaseName
-        containers: [
-          {
-            name: cosmosContainerName
-            paths: ['/name']
-            kind: 'Hash'
-            indexingPolicy: {
-              automatic: true
-              indexingMode: 'consistent'
-              includedPaths: [
-                {
-                  path: '/*'
-                }
-              ]
-              excludedPaths: [
-                {
-                  path: '/"_etag"/?'
-                }
-              ]
-            }
-            
-          }
-        ]
-      }
-    ]
-    sqlRoleAssignmentsPrincipalIds: [
+    accountName: '${abbrs.documentDBDatabaseAccounts}${resourceToken}'
+    databaseName: cosmosDatabaseName
+    containerName: cosmosContainerName
+    dataContributorIdentityIds: [
       apiUserAssignedIdentity.outputs.principalId
-      deployer().objectId // For demo/lab purposes only, remove in production
+      deployer().objectId
     ]
-    sqlRoleDefinitions: [ { name: CosmosDbDataContributor } ]
-    networkRestrictions: {
-      publicNetworkAccess: 'Enabled'
-    }
   }
 }
+
 
 // Azure AI Hub and Project for code analysis
 module aiProject './app/ai/ai-project.bicep' = {
@@ -247,7 +207,7 @@ module api './app/api.bicep' = {
     identityClientId: apiUserAssignedIdentity.outputs.clientId
     aiServicesId: openai.outputs.aiServicesId
     appSettings: {
-      COSMOS_ENDPOINT: cosmosDb.outputs.endpoint
+      COSMOS_ENDPOINT: cosmosDb.outputs.documentEndpoint
       COSMOS_DATABASE_NAME: cosmosDatabaseName
       COSMOS_CONTAINER_NAME: cosmosContainerName
       BLOB_CONTAINER_NAME: 'snippet-backups'
@@ -276,7 +236,7 @@ module api './app/api.bicep' = {
 // Output names directly match the corresponding keys in local.settings.json for easier mapping.
 
 @description('Cosmos DB endpoint. Output name matches the COSMOS_ENDPOINT key in local settings.')
-output COSMOS_ENDPOINT string = cosmosDb.outputs.endpoint
+output COSMOS_ENDPOINT string = cosmosDb.outputs.documentEndpoint
 
 @description('Connection string for the Azure AI Project. Output name matches the PROJECT_CONNECTION_STRING key in local settings.')
 output PROJECT_CONNECTION_STRING string = aiProject.outputs.projectConnectionString
