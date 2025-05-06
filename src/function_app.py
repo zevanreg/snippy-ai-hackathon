@@ -1,9 +1,27 @@
-# This is an Azure Functions application that demonstrates several key Azure services:
-# 1. Azure Functions with HTTP and MCP triggers
-# 2. Azure Cosmos DB for document storage
-# 3. Azure OpenAI for generating embeddings
-# 4. Azure AI Agents for code analysis
-# 5. Vector search capabilities using embeddings
+# =============================================================================
+# AZURE FUNCTIONS APPLICATION WITH INTEGRATED AI SERVICES
+# =============================================================================
+#
+# This application demonstrates a modern AI-powered code snippet manager built with:
+#
+# 1. Azure Functions - Serverless compute that runs your code in the cloud
+#    - HTTP triggers - Standard RESTful API endpoints accessible over HTTP
+#    - MCP triggers - Model Context Protocol for AI agent integration (e.g., GitHub Copilot)
+#
+# 2. Azure Cosmos DB - NoSQL database with vector search capability
+#    - Stores code snippets and their vector embeddings
+#    - Enables semantic search through vector similarity
+#
+# 3. Azure OpenAI - Provides AI models and embeddings
+#    - Generates vector embeddings from code snippets
+#    - These embeddings capture the semantic meaning of the code
+#
+# 4. Azure AI Agents - Specialized AI agents for code analysis
+#    - For generating documentation and style guides from snippets
+#
+# The application provides two parallel interfaces for the same functionality:
+# - HTTP endpoints for traditional API access
+# - MCP tools for AI assistant integration
 
 import json
 import logging
@@ -11,541 +29,520 @@ import azure.functions as func
 from data import cosmos_ops  # Module for Cosmos DB operations
 from agents import deep_wiki, code_style  # Modules for AI agent operations
 
-# Create the Azure Functions app instance
-# This is the entry point for all function definitions
+# Initialize the Azure Functions app
+# This is the main entry point for all function definitions
 app = func.FunctionApp()
 
-# Constants for MCP (Microsoft Copilot) tool properties
-# These define the schema for the MCP tool inputs
-_SNIPPET_NAME_PROPERTY_NAME = "snippetname"
-_SNIPPET_PROPERTY_NAME = "snippet"
-_PROJECT_ID_PROPERTY_NAME = "projectid"
-_CHAT_HISTORY_PROPERTY_NAME = "chathistory"
-_USER_QUERY_PROPERTY_NAME = "userquery"
+# =============================================================================
+# CONSTANTS AND UTILITY CLASSES
+# =============================================================================
 
-# Class to define properties for MCP tools
-# This helps validate and document the expected inputs for each tool
+# Constants for input property names in MCP tool definitions
+# These define the expected property names for inputs to MCP tools
+_SNIPPET_NAME_PROPERTY_NAME = "snippetname"  # Property name for the snippet identifier
+_SNIPPET_PROPERTY_NAME = "snippet"           # Property name for the snippet content
+_PROJECT_ID_PROPERTY_NAME = "projectid"      # Property name for the project identifier
+_CHAT_HISTORY_PROPERTY_NAME = "chathistory"  # Property name for previous chat context
+_USER_QUERY_PROPERTY_NAME = "userquery"      # Property name for the user's specific question
+
+# Utility class to define properties for MCP tools
+# This creates a standardized way to document and validate expected inputs
 class ToolProperty:
+    """
+    Defines a property for an MCP tool, including its name, data type, and description.
+    
+    These properties are used by AI assistants (like GitHub Copilot) to understand:
+    - What inputs each tool expects
+    - What data types those inputs should be
+    - How to describe each input to users
+    
+    This helps the AI to correctly invoke the tool with appropriate parameters.
+    """
     def __init__(self, property_name: str, property_type: str, description: str):
-        self.propertyName = property_name
-        self.propertyType = property_type
-        self.description = description
-
+        self.propertyName = property_name    # Name of the property
+        self.propertyType = property_type    # Data type (string, number, etc.)
+        self.description = description       # Human-readable description
+        
     def to_dict(self):
+        """
+        Converts the property definition to a dictionary format for JSON serialization.
+        Required for MCP tool registration.
+        """
         return {
             "propertyName": self.propertyName,
             "propertyType": self.propertyType,
             "description": self.description,
         }
 
-# Define the tool properties for each MCP tool
-# These properties define what inputs each tool expects
+# =============================================================================
+# TOOL PROPERTY DEFINITIONS
+# =============================================================================
+# Each MCP tool needs a schema definition to describe its expected inputs
+# This is how AI assistants know what parameters to provide when using these tools
+
+# Properties for the save_snippet tool
+# This tool saves code snippets with their vector embeddings
 tool_properties_save_snippets = [
-    ToolProperty(_SNIPPET_NAME_PROPERTY_NAME, "string", "The name of the snippet."),
-    ToolProperty(_PROJECT_ID_PROPERTY_NAME, "string", "The ID of the project. Optional, defaults to 'default-project' if not provided."),
-    ToolProperty(_SNIPPET_PROPERTY_NAME, "string", "The content of the snippet."),
+    ToolProperty(_SNIPPET_NAME_PROPERTY_NAME, "string", "A unique name or identifier for the code snippet. Provide this if you have a specific name for the snippet being saved. Essential for identifying the snippet later."),
+    ToolProperty(_PROJECT_ID_PROPERTY_NAME, "string", "An identifier for a project to associate this snippet with. Useful for organizing snippets. If omitted or not relevant, it defaults to 'default-project'."),
+    ToolProperty(_SNIPPET_PROPERTY_NAME, "string", "The actual code or text content of the snippet. Provide the content that needs to be saved and made searchable."),
 ]
 
+# Properties for the get_snippet tool
+# This tool retrieves previously saved snippets by name
 tool_properties_get_snippets = [
-    ToolProperty(_SNIPPET_NAME_PROPERTY_NAME, "string", "The name of the snippet."),
+    ToolProperty(_SNIPPET_NAME_PROPERTY_NAME, "string", "The unique name or identifier of the code snippet you want to retrieve. This is required to fetch a specific snippet."),
 ]
 
+# Properties for the deep_wiki tool
+# This tool generates comprehensive documentation from code snippets
 tool_properties_wiki = [
-    ToolProperty(_CHAT_HISTORY_PROPERTY_NAME, "string", "The chat history or chat session for context."),
-    ToolProperty(_USER_QUERY_PROPERTY_NAME, "string", "The user's query for wiki generation."),
+    ToolProperty(_CHAT_HISTORY_PROPERTY_NAME, "string", "Optional. The preceding conversation history (e.g., user prompts and AI responses). Providing this helps contextualize the wiki content generation. Omit if no relevant history exists or if a general wiki is desired."),
+    ToolProperty(_USER_QUERY_PROPERTY_NAME, "string", "Optional. The user's specific question, instruction, or topic to focus the wiki documentation on. If omitted, a general wiki covering available snippets might be generated."),
 ]
 
+# Properties for the code_style tool
+# This tool generates coding style guides based on existing snippets
 tool_properties_code_style = [
-    ToolProperty(_CHAT_HISTORY_PROPERTY_NAME, "string", "The chat history or chat session for context."),
-    ToolProperty(_USER_QUERY_PROPERTY_NAME, "string", "The user's query for code style analysis."),
+    ToolProperty(_CHAT_HISTORY_PROPERTY_NAME, "string", "Optional. The preceding conversation history (e.g., user prompts and AI responses). This can provide context for the code style analysis or guide generation. Omit if not available or not relevant."),
+    ToolProperty(_USER_QUERY_PROPERTY_NAME, "string", "Optional. The user's specific question, instruction, or prompt related to code style. If omitted, a general code style analysis or a default guide might be generated."),
 ]
 
 # Convert tool properties to JSON for MCP tool registration
-# This is required by the MCP tool trigger binding
+# This is required format for the MCP tool trigger binding
 tool_properties_save_snippets_json = json.dumps([prop.to_dict() for prop in tool_properties_save_snippets])
 tool_properties_get_snippets_json = json.dumps([prop.to_dict() for prop in tool_properties_get_snippets])
 tool_properties_wiki_json = json.dumps([prop.to_dict() for prop in tool_properties_wiki])
 tool_properties_code_style_json = json.dumps([prop.to_dict() for prop in tool_properties_code_style])
 
-# HTTP trigger for saving snippets
-# This demonstrates a standard HTTP trigger with Azure OpenAI embeddings input
+# =============================================================================
+# SAVE SNIPPET FUNCTIONALITY
+# =============================================================================
+
+# HTTP endpoint for saving snippets
+# This is accessible via standard HTTP POST requests
 @app.route(route="snippets", methods=["POST"], auth_level=func.AuthLevel.FUNCTION)
 @app.embeddings_input(arg_name="embeddings", input="{code}", input_type="rawText", model="%EMBEDDING_MODEL_DEPLOYMENT_NAME%")
 async def http_save_snippet(req: func.HttpRequest, embeddings: str) -> func.HttpResponse:
     """
-    HTTP trigger function to save a code snippet.
-    This function demonstrates:
-    1. HTTP trigger binding
-    2. Azure OpenAI embeddings generation
-    3. Cosmos DB document storage
-    4. Error handling and validation
+    HTTP trigger function to save a code snippet with its vector embedding.
     
-    Args:
-        req: The HTTP request containing the snippet data
-        embeddings: The embeddings generated by Azure OpenAI
-        
-    Returns:
-        HTTP response with the saved snippet data
+    Key features:
+    - Takes a JSON payload with 'name', 'code', and optional 'projectId'
+    - Uses Azure OpenAI to automatically generate vector embeddings
+    - Stores the snippet and its embedding in Cosmos DB
+    
+    The @app.embeddings_input decorator:
+    - Automatically calls Azure OpenAI before the function runs
+    - Extracts 'code' from the request body
+    - Generates a vector embedding for that code
+    - Provides the embedding to the function via the 'embeddings' parameter
     """
     try:
-        # Parse the request body
+        # 1. Extract and validate the request body
         req_body = req.get_json()
-        
-        # Validate required fields
         required_fields = ["name", "code"]
         for field in required_fields:
             if field not in req_body:
+                # Return a 400 Bad Request if required fields are missing
                 return func.HttpResponse(
                     body=json.dumps({"error": f"Missing required field: {field}"}),
                     mimetype="application/json",
-                    status_code=400
-                )
+                    status_code=400)
         
-        # Set default projectId if not provided
-        if "projectId" not in req_body:
-            req_body["projectId"] = "default-project"
-        
-        # Log input text and embeddings data for debugging
-        logging.info(f"Input text length: {len(req_body['code'])} characters")
-        logging.info(f"Input text preview: {req_body['code'][:100]}...")
-        
-        try:
-            # Parse embeddings from the input binding
-            # The embeddings are generated by Azure OpenAI and passed through the binding
-            embeddings_data = json.loads(embeddings)
-            logging.info(f"Embeddings data keys: {list(embeddings_data.keys())}")
-            
-            if "response" not in embeddings_data:
-                raise ValueError("Embeddings data missing 'response' key")
-                
-            response_data = embeddings_data["response"]
-            if "data" not in response_data:
-                raise ValueError("Embeddings response missing 'data' key")
-                
-            # Extract the embedding vector from the response
-            # This vector will be used for vector search in Cosmos DB
-            embedding_vector = response_data["data"][0]["embedding"]
-            logging.info(f"Embedding vector length: {len(embedding_vector)}")
-            logging.info(f"First 5 embedding values: {embedding_vector[:5]}")
-            
-            # Save snippet to Cosmos DB with embeddings
-            # This demonstrates vector search capabilities in Cosmos DB
-            result = await cosmos_ops.upsert_document(
-                name=req_body["name"],
-                project_id=req_body["projectId"],
-                code=req_body["code"],
-                embedding=embedding_vector
-            )
-        except json.JSONDecodeError as e:
-            logging.error(f"Failed to parse embeddings JSON: {str(e)}")
-            return func.HttpResponse(
-                body=json.dumps({"error": "Invalid embeddings data format"}),
-                mimetype="application/json",
-                status_code=500
-            )
-        except (KeyError, IndexError) as e:
-            logging.error(f"Embeddings data structure error: {str(e)}")
-            return func.HttpResponse(
-                body=json.dumps({"error": "Invalid embeddings data structure"}),
-                mimetype="application/json",
-                status_code=500
-            )
-        
-        return func.HttpResponse(
-            body=json.dumps(result),
-            mimetype="application/json",
-            status_code=200
-        )
-    except Exception as e:
-        logging.error(f"Error in http_save_snippet: {str(e)}")
-        return func.HttpResponse(
-            body=json.dumps({"error": str(e)}),
-            mimetype="application/json",
-            status_code=500
-        )
+        # 2. Extract the snippet details from the request
+        project_id = req_body.get("projectId", "default-project")  # Use default if not provided
+        name = req_body["name"]
+        code = req_body["code"]
 
-# MCP tool trigger for saving snippets
-# This demonstrates the MCP tool trigger binding
-@app.generic_trigger(
-    arg_name="context",
-    type="mcpToolTrigger",
-    toolName="save_snippet",
-    description="Save a code snippet with name and project ID.",
-    toolProperties=tool_properties_save_snippets_json,
-)
-@app.embeddings_input(arg_name="embeddings", input="{arguments.snippet}", input_type="rawText", model="%EMBEDDING_MODEL_DEPLOYMENT_NAME%")
-async def mcp_save_snippet(context: str, embeddings: str) -> str:
-    """
-    MCP tool trigger function to save a code snippet.
-    This function demonstrates:
-    1. MCP tool trigger binding
-    2. Azure OpenAI embeddings generation
-    3. Cosmos DB document storage
-    4. Error handling and validation
-    
-    Args:
-        context: The MCP tool context containing the snippet data
-        embeddings: The embeddings generated by Azure OpenAI
-        
-    Returns:
-        JSON string with the saved snippet data
-    """
-    try:
-        # Parse the incoming context string
-        # MCP tools pass data through a context object
-        mcp_data = json.loads(context)
-        
-        # Extract required fields from the MCP context
-        name = mcp_data["arguments"][_SNIPPET_NAME_PROPERTY_NAME]
-        project_id = mcp_data["arguments"].get(_PROJECT_ID_PROPERTY_NAME, "default-project")
-        code = mcp_data["arguments"][_SNIPPET_PROPERTY_NAME]
-        
-        # Log input text and embeddings data for debugging
+        # 3. Log some details about the snippet being saved
         logging.info(f"Input text length: {len(code)} characters")
         logging.info(f"Input text preview: {code[:100]}...")
         
         try:
-            # Parse embeddings from the input binding
-            # The embeddings are generated by Azure OpenAI and passed through the binding
+            # 4. Process the embeddings generated by Azure OpenAI
+            # The embeddings are provided as a JSON string that needs to be parsed
             embeddings_data = json.loads(embeddings)
-            logging.info(f"Embeddings data keys: {list(embeddings_data.keys())}")
             
-            if "response" not in embeddings_data:
-                raise ValueError("Embeddings data missing 'response' key")
-                
-            response_data = embeddings_data["response"]
-            if "data" not in response_data:
-                raise ValueError("Embeddings response missing 'data' key")
-                
-            # Extract the embedding vector from the response
-            # This vector will be used for vector search in Cosmos DB
-            embedding_vector = response_data["data"][0]["embedding"]
-            logging.info(f"Embedding vector length: {len(embedding_vector)}")
-            logging.info(f"First 5 embedding values: {embedding_vector[:5]}")
+            # 5. Extract the actual vector from the embeddings response
+            # This is the numerical representation of the code's meaning
+            embedding_vector = embeddings_data["response"]["data"][0]["embedding"]
             
-            # Save snippet to Cosmos DB with embeddings
-            # This demonstrates vector search capabilities in Cosmos DB
+            # 6. Save the snippet and its embedding to Cosmos DB
             result = await cosmos_ops.upsert_document(
                 name=name,
                 project_id=project_id,
                 code=code,
                 embedding=embedding_vector
             )
-        except json.JSONDecodeError as e:
-            logging.error(f"Failed to parse embeddings JSON: {str(e)}")
-            return json.dumps({"error": "Invalid embeddings data format"})
-        except (KeyError, IndexError) as e:
-            logging.error(f"Embeddings data structure error: {str(e)}")
-            return json.dumps({"error": "Invalid embeddings data structure"})
+        except (json.JSONDecodeError, KeyError, IndexError) as e:
+            # Handle errors in embedding processing
+            logging.error(f"Embeddings processing error: {str(e)}")
+            return func.HttpResponse(
+                body=json.dumps({"error": "Invalid embeddings data or structure"}),
+                mimetype="application/json",
+                status_code=500)
         
+        # 7. Return success response with the result from Cosmos DB
+        return func.HttpResponse(body=json.dumps(result), mimetype="application/json", status_code=200)
+    except Exception as e:
+        # General error handling
+        logging.error(f"Error in http_save_snippet: {str(e)}")
+        return func.HttpResponse(body=json.dumps({"error": str(e)}), mimetype="application/json", status_code=500)
+
+# MCP tool for saving snippets
+# This is accessible to AI assistants via the MCP protocol
+@app.generic_trigger(
+    arg_name="context",
+    type="mcpToolTrigger",
+    toolName="save_snippet",
+    description="Saves a given code snippet. It can take a snippet name, the snippet content, and an optional project ID. Embeddings are generated for the content to enable semantic search. The LLM should provide 'snippetname' and 'snippet' when intending to save.",
+    toolProperties=tool_properties_save_snippets_json,
+)
+@app.embeddings_input(arg_name="embeddings", input="{arguments.snippet}", input_type="rawText", model="%EMBEDDING_MODEL_DEPLOYMENT_NAME%")
+async def mcp_save_snippet(context: str, embeddings: str) -> str:
+    """
+    MCP tool to save a code snippet with vector embedding.
+    
+    Key features:
+    - Receives parameters from an AI assistant like GitHub Copilot
+    - Uses the same embedding generation as the HTTP endpoint
+    - Shares the same storage logic with the HTTP endpoint
+    
+    The difference from the HTTP endpoint:
+    - Receives parameters via the 'context' JSON string instead of HTTP body
+    - Returns results as a JSON string instead of an HTTP response
+    - Uses {arguments.snippet} in the embeddings_input decorator to reference
+      the snippet content from the context arguments
+    """
+    try:
+        # 1. Parse the context JSON string to extract the arguments
+        mcp_data = json.loads(context)
+        args = mcp_data.get("arguments", {})
+
+        # 2. Extract snippet details from the arguments
+        name = args.get(_SNIPPET_NAME_PROPERTY_NAME)  # Snippet name
+        code = args.get(_SNIPPET_PROPERTY_NAME)       # Snippet content
+        project_id = args.get(_PROJECT_ID_PROPERTY_NAME, "default-project")  # Use default if not provided
+
+        # 3. Validate required parameters
+        if not name or not code:
+            missing_fields = []
+            if not name: missing_fields.append(_SNIPPET_NAME_PROPERTY_NAME)
+            if not code: missing_fields.append(_SNIPPET_PROPERTY_NAME)
+            return json.dumps({"error": f"Missing essential arguments for save_snippet: {', '.join(missing_fields)}. Please provide both snippet name and content."})
+
+        # 4. Log some details about the snippet being saved
+        logging.info(f"Input text length: {len(code)} characters")
+        logging.info(f"Input text preview: {code[:100]}...")
+        
+        try:
+            # 5. Process the embeddings generated by Azure OpenAI
+            embeddings_data = json.loads(embeddings)
+            
+            # 6. Extract the vector from the embeddings response
+            embedding_vector = embeddings_data["response"]["data"][0]["embedding"]
+            
+            # 7. Save the snippet and its embedding to Cosmos DB
+            # Uses the same storage function as the HTTP endpoint
+            result = await cosmos_ops.upsert_document(name=name, project_id=project_id, code=code, embedding=embedding_vector)
+        except (json.JSONDecodeError, KeyError, IndexError) as e:
+            # Handle errors in embedding processing
+            logging.error(f"Embeddings processing error: {str(e)}")
+            return json.dumps({"error": "Invalid embeddings data or structure"})
+        
+        # 8. Return success result as a JSON string
         return json.dumps(result)
     except json.JSONDecodeError:
-        logging.error(f"Failed to decode JSON from MCP context: {context}")
+        # Handle invalid context JSON
         return json.dumps({"error": "Invalid JSON received in context"})
-    except KeyError as e:
-        logging.error(f"Missing key in parsed MCP context: {e}")
-        return json.dumps({"error": f"Missing expected argument: {e}"})
-    except Exception as e:
+    except Exception as e: 
+        # General error handling
         logging.error(f"Error in mcp_save_snippet: {str(e)}")
         return json.dumps({"error": str(e)})
 
-# HTTP trigger for getting snippets
-# This demonstrates a standard HTTP trigger with route parameters
+# =============================================================================
+# GET SNIPPET FUNCTIONALITY
+# =============================================================================
+
+# HTTP endpoint for retrieving snippets
+# This is accessible via standard HTTP GET requests
 @app.route(route="snippets/{name}", methods=["GET"], auth_level=func.AuthLevel.FUNCTION)
 async def http_get_snippet(req: func.HttpRequest) -> func.HttpResponse:
     """
-    HTTP trigger function to get a code snippet by name.
-    This function demonstrates:
-    1. HTTP trigger with route parameters
-    2. Cosmos DB document retrieval
-    3. Error handling and validation
+    HTTP trigger function to retrieve a code snippet by name.
     
-    Args:
-        req: The HTTP request containing the snippet name in the route
-        
-    Returns:
-        HTTP response with the snippet data
+    Key features:
+    - Takes the snippet name from the URL path parameter
+    - Retrieves the snippet from Cosmos DB
+    - Returns the snippet as a JSON response
+    
+    No embedding generation is needed for retrieval by name.
     """
     try:
-        # Extract the snippet name from the route parameters
+        # 1. Extract the snippet name from the route parameters
         name = req.route_params.get("name")
         if not name:
-            return func.HttpResponse(
-                body=json.dumps({"error": "Missing snippet name in route"}),
-                mimetype="application/json",
-                status_code=400
-            )
+            # Return a 400 Bad Request if the name is missing
+            return func.HttpResponse(body=json.dumps({"error": "Missing snippet name in route"}), mimetype="application/json", status_code=400)
         
-        # Get snippet from Cosmos DB
-        # This demonstrates document retrieval from Cosmos DB
+        # 2. Retrieve the snippet from Cosmos DB
         snippet = await cosmos_ops.get_snippet_by_id(name)
         if not snippet:
-            return func.HttpResponse(
-                body=json.dumps({"error": f"Snippet '{name}' not found"}),
-                mimetype="application/json",
-                status_code=404
-            )
+            # Return a 404 Not Found if the snippet doesn't exist
+            return func.HttpResponse(body=json.dumps({"error": f"Snippet '{name}' not found"}), mimetype="application/json", status_code=404)
         
-        return func.HttpResponse(
-            body=json.dumps(snippet),
-            mimetype="application/json",
-            status_code=200
-        )
+        # 3. Return the snippet as a JSON response
+        return func.HttpResponse(body=json.dumps(snippet), mimetype="application/json", status_code=200)
     except Exception as e:
+        # General error handling
         logging.error(f"Error in http_get_snippet: {str(e)}")
-        return func.HttpResponse(
-            body=json.dumps({"error": str(e)}),
-            mimetype="application/json",
-            status_code=500
-        )
+        return func.HttpResponse(body=json.dumps({"error": str(e)}), mimetype="application/json", status_code=500)
 
-# MCP tool trigger for getting snippets
-# This demonstrates the MCP tool trigger binding
+# MCP tool for retrieving snippets
+# This is accessible to AI assistants via the MCP protocol
 @app.generic_trigger(
     arg_name="context",
     type="mcpToolTrigger",
     toolName="get_snippet",
-    description="Get a code snippet by name.",
+    description="Retrieves a previously saved code snippet using its unique name. The LLM should provide the 'snippetname' when it intends to fetch a specific snippet.",
     toolProperties=tool_properties_get_snippets_json,
 )
 async def mcp_get_snippet(context) -> str:
     """
-    MCP tool trigger function to get a code snippet by name.
-    This function demonstrates:
-    1. MCP tool trigger binding
-    2. Cosmos DB document retrieval
-    3. Error handling and validation
+    MCP tool to retrieve a code snippet by name.
     
-    Args:
-        context: The MCP tool context containing the snippet name
-        
-    Returns:
-        JSON string with the snippet data
+    Key features:
+    - Receives the snippet name from an AI assistant
+    - Uses the same retrieval logic as the HTTP endpoint
+    - Returns the snippet as a JSON string
+    
+    The difference from the HTTP endpoint:
+    - Receives the snippet name via the 'context' JSON string instead of URL path
+    - Returns results as a JSON string instead of an HTTP response
     """
     try:
-        # Parse the incoming context string
-        # MCP tools pass data through a context object
+        # 1. Parse the context JSON string to extract the arguments
         mcp_data = json.loads(context)
+        args = mcp_data.get("arguments", {})
         
-        # Extract the snippet name from the MCP context
-        name = mcp_data["arguments"][_SNIPPET_NAME_PROPERTY_NAME]
+        # 2. Extract the snippet name from the arguments
+        name = args.get(_SNIPPET_NAME_PROPERTY_NAME)
+
+        # 3. Validate the required parameter
         if not name:
-            return json.dumps({"error": "Missing snippet name in MCP context"})
+            return json.dumps({"error": f"Missing essential argument for get_snippet: {_SNIPPET_NAME_PROPERTY_NAME}. Please provide the snippet name to retrieve."})
         
-        # Get snippet from Cosmos DB
-        # This demonstrates document retrieval from Cosmos DB
+        # 4. Retrieve the snippet from Cosmos DB
+        # Uses the same storage function as the HTTP endpoint
         snippet = await cosmos_ops.get_snippet_by_id(name)
         if not snippet:
+            # Return an error if the snippet doesn't exist
             return json.dumps({"error": f"Snippet '{name}' not found"})
         
+        # 5. Return the snippet as a JSON string
         return json.dumps(snippet)
     except json.JSONDecodeError:
-        logging.error(f"Failed to decode JSON from MCP context: {context}")
+        # Handle invalid context JSON
         return json.dumps({"error": "Invalid JSON received in context"})
-    except KeyError as e:
-        logging.error(f"Missing key in parsed MCP context: {e}")
-        return json.dumps({"error": f"Missing expected argument: {e}"})
     except Exception as e:
+        # General error handling
         logging.error(f"Error in mcp_get_snippet: {str(e)}")
         return json.dumps({"error": str(e)})
 
-# HTTP trigger for code style
-# This demonstrates integration with Azure AI Agents
+# =============================================================================
+# CODE STYLE GUIDE FUNCTIONALITY
+# =============================================================================
+
+# HTTP endpoint for generating code style guides
+# This is accessible via standard HTTP POST requests
 @app.route(route="snippets/code-style", methods=["POST"], auth_level=func.AuthLevel.FUNCTION)
 async def http_code_style(req: func.HttpRequest) -> func.HttpResponse:
     """
-    HTTP trigger function to generate a code style guide using an AI agent.
-    This function demonstrates:
-    1. HTTP trigger
-    2. Azure AI Agents integration
-    3. Error handling and logging
+    HTTP trigger to generate a code style guide based on saved snippets.
     
-    Args:
-        req: The HTTP request containing chat history and user query
-        
-    Returns:
-        HTTP response with the code style guide
+    Key features:
+    - Takes optional chat history and user query from the request body
+    - Uses AI to analyze saved code snippets
+    - Generates a style guide as markdown content
+    
+    This leverages Azure AI to analyze patterns in the code snippets
+    and generate a coherent style guide that can be saved by the client.
     """
     try:
-        logging.info("Starting code style generation using AI agent")
+        logging.info("HTTP: Starting code style content generation")
         
-        # Parse the request body
-        req_body = req.get_json()
+        # 1. Extract the request body, defaulting to an empty object if not provided
+        req_body = req.get_json() if req.get_body() else {} 
         
-        # Validate required fields
-        required_fields = ["chatHistory", "userQuery"]
-        for field in required_fields:
-            if field not in req_body:
-                return func.HttpResponse(
-                    body=json.dumps({"error": f"Missing required field: {field}"}),
-                    mimetype="application/json",
-                    status_code=400
-                )
+        # 2. Extract optional parameters from the request
+        chat_history = req_body.get("chatHistory", "")  # Previous conversation for context
+        user_query = req_body.get("userQuery", "")      # Specific user question or focus
         
-        # Generate code style guide using AI agent
-        style_guide = await code_style.generate_code_style(
-            chat_history=req_body["chatHistory"],
-            user_query=req_body["userQuery"]
+        # 3. Generate the code style guide using the AI agent
+        # This will analyze saved snippets and generate appropriate content
+        style_guide_content = await code_style.generate_code_style(
+            chat_history=chat_history,
+            user_query=user_query
         )
-        logging.info("Successfully generated code style guide")
+        logging.info("HTTP: Successfully generated code style content")
         
+        # 4. Return the generated content as a JSON response
         return func.HttpResponse(
-            body=json.dumps({"styleGuide": style_guide}),
-            mimetype="application/json",
+            body=json.dumps({"styleGuideContent": style_guide_content}), 
+            mimetype="application/json", 
             status_code=200
         )
     except Exception as e:
+        # General error handling with full stack trace
         logging.error(f"Error in http_code_style: {str(e)}", exc_info=True)
-        return func.HttpResponse(
-            body=json.dumps({"error": str(e)}),
-            mimetype="application/json",
-            status_code=500
-        )
+        return func.HttpResponse(body=json.dumps({"error": str(e)}), mimetype="application/json", status_code=500)
 
-# MCP tool trigger for code style
-# This demonstrates integration with Azure AI Agents through MCP
+# MCP tool for generating code style guides
+# This is accessible to AI assistants via the MCP protocol
 @app.generic_trigger(
     arg_name="context",
     type="mcpToolTrigger",
     toolName="code_style",
-    description="Generate a code style guide using an AI agent.",
+    description="Generates a code style guide. This involves creating content for a new file (e.g., 'code-style-guide.md' to be placed in the workspace root). Optional 'chathistory' and 'userquery' can be supplied to customize or focus the guide; omit them for a general or default style guide.",
     toolProperties=tool_properties_code_style_json,
 )
 async def mcp_code_style(context) -> str:
     """
-    MCP tool trigger function to generate a code style guide using an AI agent.
-    This function demonstrates:
-    1. MCP tool trigger binding
-    2. Azure AI Agents integration
-    3. Error handling and logging
+    MCP tool to generate a code style guide based on saved snippets.
     
-    Args:
-        context: The MCP tool context containing chat history and user query
-        
-    Returns:
-        JSON string with the code style guide
+    Key features:
+    - Receives optional parameters from an AI assistant
+    - Uses the same AI agent as the HTTP endpoint
+    - Returns the generated content as a JSON string
+    
+    The difference from the HTTP endpoint:
+    - Receives parameters via the 'context' JSON string instead of HTTP body
+    - Returns results as a JSON string instead of an HTTP response
     """
     try:
-        logging.info("Starting MCP code style generation using AI agent")
+        logging.info("MCP: Starting code style content generation")
         
-        # Parse the incoming context string
+        # 1. Parse the context JSON string to extract the arguments
         mcp_data = json.loads(context)
+        args = mcp_data.get("arguments", {})
         
-        # Extract required fields from the MCP context
-        chat_history = mcp_data["arguments"][_CHAT_HISTORY_PROPERTY_NAME]
-        user_query = mcp_data["arguments"][_USER_QUERY_PROPERTY_NAME]
+        # 2. Extract optional parameters from the arguments
+        chat_history = args.get(_CHAT_HISTORY_PROPERTY_NAME, "")  # Previous conversation for context
+        user_query = args.get(_USER_QUERY_PROPERTY_NAME, "")      # Specific user question or focus
         
-        # Generate code style guide using AI agent
-        style_guide = await code_style.generate_code_style(
+        # 3. Generate the code style guide using the AI agent
+        # Uses the same function as the HTTP endpoint
+        style_guide_content = await code_style.generate_code_style(
             chat_history=chat_history,
             user_query=user_query
         )
-        logging.info("Successfully generated code style guide")
+        logging.info("MCP: Successfully generated code style content")
         
-        return json.dumps({"styleGuide": style_guide})
+        # 4. Return the generated content as a JSON string
+        return json.dumps({"styleGuideContent": style_guide_content})
     except json.JSONDecodeError:
-        logging.error(f"Failed to decode JSON from MCP context: {context}")
+        # Handle invalid context JSON
         return json.dumps({"error": "Invalid JSON received in context"})
-    except KeyError as e:
-        logging.error(f"Missing key in parsed MCP context: {e}")
-        return json.dumps({"error": f"Missing expected argument: {e}"})
     except Exception as e:
+        # General error handling with full stack trace
         logging.error(f"Error in mcp_code_style: {str(e)}", exc_info=True)
         return json.dumps({"error": str(e)})
 
+# =============================================================================
+# DEEP WIKI FUNCTIONALITY
+# =============================================================================
+
+# HTTP endpoint for generating comprehensive wiki documentation
+# This is accessible via standard HTTP POST requests
 @app.route(route="snippets/wiki", methods=["POST"], auth_level=func.AuthLevel.FUNCTION)
 async def http_deep_wiki(req: func.HttpRequest) -> func.HttpResponse:
     """
-    HTTP trigger function to generate wiki documentation for all code snippets.
-    This function demonstrates:
-    1. HTTP trigger binding
-    2. Azure AI Agents for documentation generation
-    3. Vector search in Cosmos DB
-    4. Error handling and validation
+    HTTP trigger to generate comprehensive wiki documentation based on saved snippets.
     
-    Args:
-        req: The HTTP request containing chat history and user query
-        
-    Returns:
-        HTTP response with the generated wiki documentation
+    Key features:
+    - Takes optional chat history and user query from the request body
+    - Uses AI to analyze saved code snippets
+    - Generates detailed documentation as markdown content
+    
+    This creates interconnected documentation that explains the code snippets
+    and their relationships, suitable for creating a developer wiki.
     """
     try:
-        # Parse the request body
-        req_body = req.get_json()
+        logging.info("HTTP: Starting deep wiki content generation")
         
-        # Validate required fields
-        required_fields = ["chatHistory", "userQuery"]
-        for field in required_fields:
-            if field not in req_body:
-                return func.HttpResponse(
-                    body=json.dumps({"error": f"Missing required field: {field}"}),
-                    mimetype="application/json",
-                    status_code=400
-                )
+        # 1. Extract the request body, defaulting to an empty object if not provided
+        req_body = req.get_json() if req.get_body() else {} 
         
-        # Generate wiki documentation
+        # 2. Extract optional parameters from the request
+        chat_history = req_body.get("chatHistory", "")  # Previous conversation for context
+        user_query = req_body.get("userQuery", "")      # Specific user question or focus
+        
+        # 3. Generate the wiki documentation using the AI agent
+        # This will analyze saved snippets and generate appropriate content
         wiki_content = await deep_wiki.generate_deep_wiki(
-            chat_history=req_body["chatHistory"],
-            user_query=req_body["userQuery"]
+            chat_history=chat_history,
+            user_query=user_query
         )
+        logging.info("HTTP: Successfully generated deep wiki content")
         
-        return func.HttpResponse(
-            body=wiki_content,
-            mimetype="text/markdown",
-            status_code=200
-        )
+        # 4. Return the generated content as markdown
+        # Note the mimetype is text/markdown, not application/json
+        return func.HttpResponse(body=wiki_content, mimetype="text/markdown", status_code=200)
     except Exception as e:
+        # General error handling
         logging.error(f"Error in http_deep_wiki: {str(e)}")
-        return func.HttpResponse(
-            body=json.dumps({"error": str(e)}),
-            mimetype="application/json",
-            status_code=500
-        )
+        return func.HttpResponse(body=json.dumps({"error": str(e)}), mimetype="application/json", status_code=500)
 
+# MCP tool for generating comprehensive wiki documentation
+# This is accessible to AI assistants via the MCP protocol
 @app.generic_trigger(
     arg_name="context",
     type="mcpToolTrigger",
     toolName="deep_wiki",
-    description="Generates comprehensive wiki documentation (deep wiki) for all code snippets.",
+    description="Creates comprehensive 'deep wiki' documentation. This involves generating content for a new wiki file (e.g., 'deep-wiki.md' to be placed in the workspace root), often by analyzing existing code snippets. Optional 'chathistory' and 'userquery' can be provided to refine or focus the wiki content; omit them for a general wiki.",
     toolProperties=tool_properties_wiki_json,
 )
 async def mcp_deep_wiki(context) -> str:
     """
-    MCP tool trigger function to generate wiki documentation (deep wiki) for all code snippets.
-    This function demonstrates:
-    1. MCP tool trigger binding
-    2. Azure AI Agents for documentation generation
-    3. Vector search in Cosmos DB
-    4. Error handling and validation
+    MCP tool to generate comprehensive wiki documentation based on saved snippets.
     
-    Args:
-        context: The MCP tool context containing chat history and user query
-        
-    Returns:
-        JSON string with the generated wiki documentation
+    Key features:
+    - Receives optional parameters from an AI assistant
+    - Uses the same AI agent as the HTTP endpoint
+    - Returns the generated content as a markdown string
+    
+    The difference from the HTTP endpoint:
+    - Receives parameters via the 'context' JSON string instead of HTTP body
+    - Returns results directly as a markdown string, not wrapped in JSON
+      (This is an exception to the usual pattern of returning JSON)
     """
     try:
-        # Parse the incoming context string
+        logging.info("MCP: Starting deep wiki content generation")
+        
+        # 1. Parse the context JSON string to extract the arguments
         mcp_data = json.loads(context)
+        args = mcp_data.get("arguments", {})
+
+        # 2. Extract optional parameters from the arguments
+        chat_history = args.get(_CHAT_HISTORY_PROPERTY_NAME, "")  # Previous conversation for context
+        user_query = args.get(_USER_QUERY_PROPERTY_NAME, "")      # Specific user question or focus
         
-        # Extract required fields from the MCP context
-        chat_history = mcp_data["arguments"][_CHAT_HISTORY_PROPERTY_NAME]
-        user_query = mcp_data["arguments"][_USER_QUERY_PROPERTY_NAME]
-        
-        # Generate wiki documentation
+        # 3. Generate the wiki documentation using the AI agent
+        # Uses the same function as the HTTP endpoint
         wiki_content = await deep_wiki.generate_deep_wiki(
             chat_history=chat_history,
             user_query=user_query
         )
+        logging.info("MCP: Successfully generated deep wiki content")
         
-        return wiki_content
+        # 4. Return the raw markdown content
+        # Note: Unlike other MCP tools, this returns raw markdown, not JSON
+        return wiki_content 
     except json.JSONDecodeError:
-        logging.error(f"Failed to decode JSON from MCP context: {context}")
+        # Handle invalid context JSON
         return json.dumps({"error": "Invalid JSON received in context"})
-    except KeyError as e:
-        logging.error(f"Missing key in parsed MCP context: {e}")
-        return json.dumps({"error": f"Missing expected argument: {e}"})
     except Exception as e:
+        # General error handling
         logging.error(f"Error in mcp_deep_wiki: {str(e)}")
         return json.dumps({"error": str(e)})
-
