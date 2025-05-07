@@ -24,8 +24,6 @@ urlFragment: snippy
   <b>Snippy · Intelligent Code-Snippet Service with MCP Tools</b>
 </p>
 
-# Snippy – Intelligent Code‑Snippet Service with MCP Tools
-
 [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://github.com/codespaces/new?hide_repo_select=true&ref=main&repo=Azure-Samples/snippy&machine=basicLinux32gb&devcontainer_path=.devcontainer%2Fdevcontainer.json)
 [![Open in Dev Containers](https://img.shields.io/static/v1?style=for-the-badge\&label=Dev%20Containers\&message=Open\&color=blue\&logo=visualstudiocode)](https://github.com/codespaces/new?hide_repo_select=true&ref=main&repo=Azure-Samples/snippy&machine=basicLinux32gb&devcontainer_path=.devcontainer%2Fdevcontainer.json)
 
