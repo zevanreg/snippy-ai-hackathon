@@ -65,6 +65,7 @@ module storage 'br/public:avm/res/storage/storage-account:0.8.3' = {
     name: !empty(storageAccountName) ? storageAccountName : '${abbrs.storageStorageAccounts}${resourceToken}'
     location: location
     tags: tags
+    skuName: 'Standard_LRS'
     blobServices: {
       containers: [{name: deploymentStorageContainerName}, {name: 'snippets'}]
     }
