@@ -25,7 +25,7 @@ urlFragment: snippy
 </p>
 
 [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://github.com/codespaces/new?hide_repo_select=true&ref=main&repo=Azure-Samples/snippy&machine=basicLinux32gb&devcontainer_path=.devcontainer%2Fdevcontainer.json)
-[![Open in Dev Containers](https://img.shields.io/static/v1?style=for-the-badge\&label=Dev%20Containers\&message=Open\&color=blue\&logo=visualstudiocode)](https://github.com/codespaces/new?hide_repo_select=true&ref=main&repo=Azure-Samples/snippy&machine=basicLinux32gb&devcontainer_path=.devcontainer%2Fdevcontainer.json)
+[![Open in Dev Containers](https://img.shields.io/static/v1?style=for-the-badge&label=Dev%20Containers&message=Open&color=blue&logo=visualstudiocode)](https://vscode.dev/redirect?url=vscode://ms-vscode-remote.remote-containers/cloneInVolume?url=https://github.com/Azure-Samples/snippy)
 
 Snippy is an **Azure Functions**–based reference application that turns any function into an **MCP (Model Context Protocol) tool** consumable by GitHub Copilot Chat and other MCP‑aware clients. The sample implements a production‑style *code‑snippet service* with AI‑powered analysis:
 
