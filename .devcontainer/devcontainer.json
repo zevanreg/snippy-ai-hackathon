@@ -1,26 +1,18 @@
 {
   "name": "Snippy Functions Codespace",
   "dockerFile": "Dockerfile",
-  
   "features": {
     "ghcr.io/devcontainers/features/azure-cli:1": {},
     "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {},
-    "ghcr.io/devcontainers/features/node:1": { "version": "lts" }
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "lts"
+    }
   },
-  
-  "forwardPorts": [7071],
-  
-  "secrets": {
-    "AzureWebJobsStorage": { "default": "UseDevelopmentStorage=true" },
-    "COSMOS_CONN": {},
-    "AZURE_OPENAI_ENDPOINT": {},
-    "AZURE_OPENAI_KEY": {},
-    "PROJECT_CONNECTION_STRING": {}
-  },
-  
+  "forwardPorts": [
+    7071
+  ],
   "postCreateCommand": "./.devcontainer/setup.sh",
   "postStartCommand": "bash .devcontainer/start.sh",
-  
   "customizations": {
     "vscode": {
       "extensions": [
@@ -31,14 +23,11 @@
       ]
     }
   },
-  
   "mounts": [
     "source=codespaces-linux-var-lib-docker,target=/var/lib/docker,type=volume"
   ],
-  
   "overrideCommand": false,
   "remoteUser": "codespace",
-  
   "runArgs": [
     "--cap-add=SYS_PTRACE",
     "--security-opt",
