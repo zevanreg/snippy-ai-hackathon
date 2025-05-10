@@ -2,37 +2,41 @@
   "name": "Snippy Functions Codespace",
   "dockerFile": "Dockerfile",
 
-  // ── Features you already had ─────────────────────────────────────────────
+  // ── Dev‑Container features ──────────────────────────────────────────────
   "features": {
     "ghcr.io/devcontainers/features/azure-cli:1": {},
     "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {},
     "ghcr.io/devcontainers/features/node:1": { "version": "lts" }
   },
 
-  // ── Forward the Functions host + Azurite blob/queue/table ports ─────────
+  // ── Ports: Functions (7071) + Azurite Blob / Queue / Table ─────────────
   "forwardPorts": [7071, 10000, 10001, 10002],
 
-  // ── Lifecycle commands ──────────────────────────────────────────────────
-  // 1. Install Azurite globally via npm
-  // 2. Run your existing setup script
-  "postCreateCommand": "npm install -g azurite && ./.devcontainer/setup.sh",
+  // ── Lifecycle commands ─────────────────────────────────────────────────
+  // ① install Azurite globally
+  // ② run the existing setup script through bash so +x isn’t required
+  "postCreateCommand": "npm install -g azurite && bash .devcontainer/setup.sh",
+  "postStartCommand":  "bash .devcontainer/start.sh",
 
-  // start.sh should include the “nohup azurite … &” block we discussed
-  "postStartCommand": "bash .devcontainer/start.sh",
-
-  // ── VS Code customisation ───────────────────────────────────────────────
+  // ── VS Code customisation ──────────────────────────────────────────────
   "customizations": {
     "vscode": {
       "extensions": [
         "ms-azuretools.vscode-azurefunctions",
         "ms-azuretools.vscode-docker",
         "GitHub.copilot",
-        "Azurite.azurite"              // Explorer & table viewer (optional)
-      ]
+        "Azurite.azurite"
+      ],
+      "settings": {
+        // Ensure the Azure Functions extension installs its server side
+        "remote.extensionKind": {
+          "ms-azuretools.vscode-azurefunctions": ["workspace"]
+        }
+      }
     }
   },
 
-  // ── Misc settings unchanged ─────────────────────────────────────────────
+  // ── Misc (unchanged) ───────────────────────────────────────────────────
   "mounts": [
     "source=codespaces-linux-var-lib-docker,target=/var/lib/docker,type=volume"
   ],

@@ -1,27 +1,49 @@
 {
-	"version": "2.0.0",
-	"tasks": [
-		{
-			"type": "shell",
-			"label": "Activate Virtual Environment",
-			"command": "${workspaceFolder}/src/.venv/Scripts/activate",
-			"windows": {
-				"command": "${workspaceFolder}/src/.venv/Scripts/activate.ps1"
-			},
-			"presentation": {
-				"reveal": "never"
-			}
-		},
-		{
-			"type": "func",
-			"label": "func: host start",
-			"command": "host start --verbose --debug --port 7071",
-			"problemMatcher": "$func-python-watch",
-			"isBackground": true,
-			"options": {
-				"cwd": "${workspaceFolder}/src"
-			},
-			"dependsOn": ["Activate Virtual Environment"]
-		}
-	]
+  "version": "2.0.0",
+  "tasks": [
+    /* 1️⃣  Activate the virtual‑env inside /src */
+    {
+      "type": "shell",
+      "label": "Activate Virtual Environment",
+      "command": "source ${workspaceFolder}/src/.venv/bin/activate",
+      "presentation": { "reveal": "never" }
+    },
+
+    /* 2️⃣  Start the Functions host (no ‘func’ task‑type needed) */
+    {
+      "type": "shell",
+      "label": "func: host start",
+      "command": "func",
+      "args": [
+        "start",
+        "--verbose",
+        "--debug",
+        "--port",
+        "7071"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/src"
+      },
+      "isBackground": true,
+      "problemMatcher": [
+        {
+          "pattern": [
+            {
+              "regexp": ".*Worker process started and initialized\\.",
+              "file": 1,
+              "line": 0,
+              "column": 0,
+              "message": 0
+            }
+          ],
+          "background": {
+            "activeOnStart": true,
+            "beginsPattern": ".+",
+            "endsPattern": ".*Worker process started and initialized\\."
+          }
+        }
+      ],
+      "dependsOn": ["Activate Virtual Environment"]
+    }
+  ]
 }
