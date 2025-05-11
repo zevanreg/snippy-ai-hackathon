@@ -1,6 +1,30 @@
-👋 Welcome to the Functions Codespace! You are on the Functions Quickstarts image.
-It includes everything needed to run through our tutorials and quickstart applications.
+# 🚀 Welcome to Snippy Codespace!
 
-📚 Functions docs can be found at: https://learn.microsoft.com/en-us/azure/azure-functions/
+## What is Snippy?
+Snippy is an intelligent code snippet service that demonstrates Azure Functions with MCP (Model Context Protocol) tools - making your functions accessible to GitHub Copilot and other AI assistants.
 
->**Note** it is a best practice to create Virtual Environments before doing the `pip install` to avoid dependency issues/collisions, or if you are running in CodeSpaces.  See [Python Environments in VS Code](https://code.visualstudio.com/docs/python/environments#_creating-environments) for more information.
+## 📋 Features
+- Save code snippets with vector embeddings in Cosmos DB
+- Perform semantic search across your code library
+- Generate documentation and style guides with AI agents
+- Experience MCP integration with GitHub Copilot
+
+## 🛠️ Getting Started
+1. Authenticate with Azure:
+   ```bash
+   azd auth login --use-device-code
+   ```
+
+2. Deploy all resources:
+   ```bash
+   azd up
+   ```
+
+3. Once deployed, use the MCP URL with GitHub Copilot Chat in Agent mode!
+
+## 📚 Resources
+- [Azure Functions Documentation](https://learn.microsoft.com/azure/azure-functions/)
+- [Model Context Protocol (MCP) Spec](https://aka.ms/mcp)
+- [Azure Functions Remote MCP Docs](https://aka.ms/azure-functions-mcp)
+
+> **Note:** This Codespace is pre-configured with a Python virtual environment at `src/.venv`. All dependencies will be installed there automatically during setup.
