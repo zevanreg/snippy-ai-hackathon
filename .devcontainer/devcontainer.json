@@ -2,41 +2,36 @@
   "name": "Snippy Functions Codespace",
   "dockerFile": "Dockerfile",
 
-  // ── Dev‑Container features ──────────────────────────────────────────────
+  // ── Features ────────────────────────────────────────────────────────────
   "features": {
     "ghcr.io/devcontainers/features/azure-cli:1": {},
     "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {},
-    "ghcr.io/devcontainers/features/node:1": { "version": "lts" }
+    "ghcr.io/devcontainers/features/node:1": { "version": "lts" },
+
+    // Starts Azurite (blob/queue/table) automatically on container boot
+    "ghcr.io/devcontainers/features/azurite:1": {}
   },
 
-  // ── Ports: Functions (7071) + Azurite Blob / Queue / Table ─────────────
+  // ── Port forwards ───────────────────────────────────────────────────────
   "forwardPorts": [7071, 10000, 10001, 10002],
 
-  // ── Lifecycle commands ─────────────────────────────────────────────────
-  // ① install Azurite globally
-  // ② run the existing setup script through bash so +x isn’t required
-  "postCreateCommand": "npm install -g azurite && bash .devcontainer/setup.sh",
+  // ── Lifecycle commands ──────────────────────────────────────────────────
+  "postCreateCommand": "./.devcontainer/setup.sh",
   "postStartCommand":  "bash .devcontainer/start.sh",
 
-  // ── VS Code customisation ──────────────────────────────────────────────
+  // ── VS Code customisation ───────────────────────────────────────────────
   "customizations": {
     "vscode": {
       "extensions": [
         "ms-azuretools.vscode-azurefunctions",
         "ms-azuretools.vscode-docker",
         "GitHub.copilot",
-        "Azurite.azurite"
-      ],
-      "settings": {
-        // Ensure the Azure Functions extension installs its server side
-        "remote.extensionKind": {
-          "ms-azuretools.vscode-azurefunctions": ["workspace"]
-        }
-      }
+        "Azurite.azurite" // UI & table explorer
+      ]
     }
   },
 
-  // ── Misc (unchanged) ───────────────────────────────────────────────────
+  // ── Misc ────────────────────────────────────────────────────────────────
   "mounts": [
     "source=codespaces-linux-var-lib-docker,target=/var/lib/docker,type=volume"
   ],
