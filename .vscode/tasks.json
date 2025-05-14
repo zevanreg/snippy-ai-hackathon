@@ -16,8 +16,6 @@
       "command": "func",
       "args": [
         "start",
-        "--verbose",
-        "--debug",
         "--port",
         "7071"
       ],
