@@ -2,14 +2,11 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Debug Python Functions",
+            "name": "Attach to Python Functions",
             "type": "python",
             "request": "attach",
-            "connect": {
-                "host": "localhost",
-                "port": 9091
-            },
-            "justMyCode": true
+            "port": 9091,
+            "preLaunchTask": "func: host start"
         }
     ]
 }
