@@ -39,6 +39,8 @@ var tags = { 'azd-env-name': environmentName }
 var functionAppName = !empty(apiServiceName) ? apiServiceName : '${abbrs.webSitesFunctions}api-${resourceToken}'
 var deploymentStorageContainerName = 'app-package-${take(functionAppName, 32)}-${take(toLower(uniqueString(functionAppName, resourceToken)), 7)}'
 
+var storageAccountActualName = !empty(storageAccountName) ? storageAccountName : '${abbrs.storageStorageAccounts}${resourceToken}'
+
 // Organize resources in a resource group
 resource rg 'Microsoft.Resources/resourceGroups@2021-04-01' = {
   name: !empty(resourceGroupName) ? resourceGroupName : '${abbrs.resourcesResourceGroups}${environmentName}'
@@ -62,7 +64,7 @@ module storage 'br/public:avm/res/storage/storage-account:0.8.3' = {
   name: 'storage'
   scope: rg
   params: {
-    name: !empty(storageAccountName) ? storageAccountName : '${abbrs.storageStorageAccounts}${resourceToken}'
+    name: storageAccountActualName
     location: location
     tags: tags
     skuName: 'Standard_LRS'
@@ -263,3 +265,6 @@ output AZURE_OPENAI_KEY string = openai.outputs.primaryKey
 @description('Name of the deployed Azure Function App.')
 output AZURE_FUNCTION_NAME string = api.outputs.SERVICE_API_NAME // Function App Name
 
+@description('Connection string for the Azure Storage Account. Output name matches the AzureWebJobsStorage key in local settings.')
+@secure()
+output AZUREWEBJOBSSTORAGE string = 'DefaultEndpointsProtocol=https;AccountName=${storageAccountActualName};AccountKey=${listKeys(resourceId('Microsoft.Storage/storageAccounts', storageAccountActualName), '2022-09-01').keys[0].value};EndpointSuffix=core.windows.net'

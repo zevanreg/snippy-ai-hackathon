@@ -7,13 +7,14 @@ $COSMOS_ENDPOINT = ($azdValues | Select-String 'COSMOS_ENDPOINT="(.*?)"').Matche
 $PROJECT_CONNECTION_STRING = ($azdValues | Select-String 'PROJECT_CONNECTION_STRING="(.*?)"').Matches.Groups[1].Value
 $AZURE_OPENAI_ENDPOINT = ($azdValues | Select-String 'AZURE_OPENAI_ENDPOINT="(.*?)"').Matches.Groups[1].Value
 $AZURE_OPENAI_KEY = ($azdValues | Select-String 'AZURE_OPENAI_KEY="(.*?)"').Matches.Groups[1].Value
+$AZUREWEBJOBSSTORAGE = ($azdValues | Select-String 'AZUREWEBJOBSSTORAGE="(.*?)"').Matches.Groups[1].Value
 
 # Create the JSON content
 $jsonContent = @"
 {
   "IsEncrypted": false,
   "Values": {
-    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "AzureWebJobsStorage": "$AZUREWEBJOBSSTORAGE",
     "FUNCTIONS_WORKER_RUNTIME": "python",
     "PYTHON_ENABLE_WORKER_EXTENSIONS": "True",
     "COSMOS_DATABASE_NAME": "dev-snippet-db",

@@ -6,6 +6,7 @@ COSMOS_ENDPOINT=$(azd env get-values | grep COSMOS_ENDPOINT | cut -d'"' -f2)
 PROJECT_CONNECTION_STRING=$(azd env get-values | grep PROJECT_CONNECTION_STRING | cut -d'"' -f2)
 AZURE_OPENAI_ENDPOINT=$(azd env get-values | grep AZURE_OPENAI_ENDPOINT | cut -d'"' -f2)
 AZURE_OPENAI_KEY=$(azd env get-values | grep AZURE_OPENAI_KEY | cut -d'"' -f2)
+AZUREWEBJOBSSTORAGE=$(azd env get-values | grep AZUREWEBJOBSSTORAGE | cut -d'"' -f2)
 
 # Create or update local.settings.json
 echo "Generating local.settings.json in src directory..."
@@ -13,7 +14,7 @@ cat > src/local.settings.json << EOF
 {
   "IsEncrypted": false,
   "Values": {
-    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "AzureWebJobsStorage": "$AZUREWEBJOBSSTORAGE",
     "FUNCTIONS_WORKER_RUNTIME": "python",
     "PYTHON_ENABLE_WORKER_EXTENSIONS": "True",
     "COSMOS_DATABASE_NAME": "dev-snippet-db",
