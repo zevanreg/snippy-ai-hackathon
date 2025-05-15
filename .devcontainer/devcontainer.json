@@ -6,10 +6,7 @@
   "features": {
     "ghcr.io/devcontainers/features/azure-cli:1": {},
     "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {},
-    "ghcr.io/devcontainers/features/node:1": { "version": "lts" },
-
-    // Starts Azurite (blob/queue/table) automatically on container boot
-    "ghcr.io/devcontainers/features/azurite:1": {}
+    "ghcr.io/devcontainers/features/node:1": { "version": "lts" }
   },
 
   // ── Port forwards ───────────────────────────────────────────────────────
@@ -25,8 +22,7 @@
       "extensions": [
         "ms-azuretools.vscode-azurefunctions",
         "ms-azuretools.vscode-docker",
-        "GitHub.copilot",
-        "Azurite.azurite" // UI & table explorer
+        "GitHub.copilot"
       ]
     }
   },
