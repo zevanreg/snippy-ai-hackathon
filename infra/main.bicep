@@ -267,5 +267,4 @@ output AZURE_FUNCTION_NAME string = api.outputs.SERVICE_API_NAME // Function App
 
 @description('Connection string for the Azure Storage Account. Output name matches the AzureWebJobsStorage key in local settings.')
 @secure()
-output AZUREWEBJOBSSTORAGE string = 'DefaultEndpointsProtocol=https;AccountName=${storageAccountActualName};AccountKey=${listKeys(resourceId('Microsoft.Storage/storageAccounts', rg.name, storageAccountActualName), '2022-09-01').keys[0].value};EndpointSuffix=core.windows.net'
-
+output AZUREWEBJOBSSTORAGE string = 'DefaultEndpointsProtocol=https;AccountName=${storageAccountActualName};AccountKey=${listKeys(resourceId('Microsoft.Storage/storageAccounts', storageAccountActualName), '2022-09-01').keys[0].value};EndpointSuffix=core.windows.net'
