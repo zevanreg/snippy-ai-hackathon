@@ -94,6 +94,17 @@ module blobRoleAssignmentApi 'app/rbac/storage-Access.bicep' = {
   }
 }
 
+// Allow user access to blob storage
+module userBlobRoleAssignmentApi 'app/rbac/storage-Access.bicep' = {
+  name: 'userBlobRoleAssignmentApi'
+  scope: rg
+  params: {
+    storageAccountName: storage.outputs.name
+    roleDefinitionID: StorageBlobDataOwner
+    principalID: deployer().objectId
+  }
+}
+
 // Allow access from api to queue storage using a managed identity
 module queueRoleAssignmentApi 'app/rbac/storage-Access.bicep' = {
   name: 'queueRoleAssignmentapi'
