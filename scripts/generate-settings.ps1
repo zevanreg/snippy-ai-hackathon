@@ -14,7 +14,7 @@ $jsonContent = @"
 {
   "IsEncrypted": false,
   "Values": {
-    "AzureWebJobsStorage": "$AZUREWEBJOBSSTORAGE",
+    "AzureWebJobsSecretStorageType": "files",
     "FUNCTIONS_WORKER_RUNTIME": "python",
     "PYTHON_ENABLE_WORKER_EXTENSIONS": "True",
     "COSMOS_DATABASE_NAME": "dev-snippet-db",
