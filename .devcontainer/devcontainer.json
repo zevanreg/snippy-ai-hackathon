@@ -1,5 +1,5 @@
 {
-  "name": "Snippy Functions Codespace",
+  "name": "Azure Functions DevContainer",
   "dockerFile": "Dockerfile",
 
   // ── Features ────────────────────────────────────────────────────────────
@@ -10,7 +10,7 @@
   },
 
   // ── Port forwards ───────────────────────────────────────────────────────
-  "forwardPorts": [7071, 10000, 10001, 10002],
+  "forwardPorts": [7071],
 
   // ── Lifecycle commands ──────────────────────────────────────────────────
   "postCreateCommand": "./.devcontainer/setup.sh",
@@ -20,9 +20,7 @@
   "customizations": {
     "vscode": {
       "extensions": [
-        "ms-azuretools.vscode-azurefunctions",
-        "ms-azuretools.vscode-docker",
-        "GitHub.copilot"
+        "ms-azuretools.vscode-azurefunctions"
       ]
     }
   },
