@@ -96,17 +96,6 @@ module blobRoleAssignmentApi 'app/rbac/storage-Access.bicep' = {
   }
 }
 
-// Allow user access to blob storage
-module userBlobRoleAssignmentApi 'app/rbac/storage-Access.bicep' = {
-  name: 'userBlobRoleAssignmentApi'
-  scope: rg
-  params: {
-    storageAccountName: storage.outputs.name
-    roleDefinitionID: StorageBlobDataOwner
-    principalID: deployer().objectId
-  }
-}
-
 // Allow access from api to queue storage using a managed identity
 module queueRoleAssignmentApi 'app/rbac/storage-Access.bicep' = {
   name: 'queueRoleAssignmentapi'
@@ -266,5 +255,4 @@ output AZURE_OPENAI_KEY string = openai.outputs.primaryKey
 output AZURE_FUNCTION_NAME string = api.outputs.SERVICE_API_NAME // Function App Name
 
 @description('Connection string for the Azure Storage Account. Output name matches the AzureWebJobsStorage key in local settings.')
-@secure()
-output AZUREWEBJOBSSTORAGE string = 'DefaultEndpointsProtocol=https;AccountName=${storageAccountActualName};AccountKey=${listKeys(resourceId('Microsoft.Storage/storageAccounts', storageAccountActualName), '2022-09-01').keys[0].value};EndpointSuffix=core.windows.net'
+output AZUREWEBJOBSSTORAGE string = storage.outputs.primaryBlobEndpoint
