@@ -1,40 +1,6 @@
 {
   "name": "Azure Functions DevContainer",
   "dockerFile": "Dockerfile",
-
-  // ── Features ────────────────────────────────────────────────────────────
-  "features": {
-    "ghcr.io/devcontainers/features/azure-cli:1": {},
-    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {},
-    "ghcr.io/devcontainers/features/node:1": { "version": "lts" }
-  },
-
-  // ── Port forwards ───────────────────────────────────────────────────────
-  "forwardPorts": [7071],
-
-  // ── Lifecycle commands ──────────────────────────────────────────────────
   "postCreateCommand": "./.devcontainer/setup.sh",
-  "postStartCommand":  "bash .devcontainer/start.sh",
-
-  // ── VS Code customisation ───────────────────────────────────────────────
-  "customizations": {
-    "vscode": {
-      "extensions": [
-        "ms-azuretools.vscode-azurefunctions"
-      ]
-    }
-  },
-
-  // ── Misc ────────────────────────────────────────────────────────────────
-  "mounts": [
-    "source=codespaces-linux-var-lib-docker,target=/var/lib/docker,type=volume"
-  ],
-  "overrideCommand": false,
-  "remoteUser": "codespace",
-  "runArgs": [
-    "--cap-add=SYS_PTRACE",
-    "--security-opt", "seccomp=unconfined",
-    "--init",
-    "--privileged"
-  ]
+  "postStartCommand": "bash .devcontainer/start.sh"
 }
