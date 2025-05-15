@@ -199,7 +199,7 @@ async def http_save_snippet(req: func.HttpRequest, embeddings: str) -> func.Http
     description="Saves a given code snippet. It can take a snippet name, the snippet content, and an optional project ID. Embeddings are generated for the content to enable semantic search. The LLM should provide 'snippetname' and 'snippet' when intending to save.",
     toolProperties=tool_properties_save_snippets_json,
 )
-@app.embeddings_input(arg_name="embeddings", input="{arguments.snippet}", input_type="rawText", embeddingsModel="%EMBEDDING_MODEL_DEPLOYMENT_NAME%")
+@app.embeddings_input(arg_name="embeddings", input="{arguments.snippet}", input_type="rawText", embeddings_model="%EMBEDDING_MODEL_DEPLOYMENT_NAME%")
 async def mcp_save_snippet(context: str, embeddings: str) -> str:
     """
     MCP tool to save a code snippet with vector embedding.
