@@ -156,7 +156,7 @@ async def generate_deep_wiki(chat_history: str = "", user_query: str = "") -> st
                         logger.info("Agent run completed successfully")
                         break
                     elif run.status == "failed":
-                        logger.error("Agent run failed with status: %s", run.status)
+                        logger.error("Agent run failed with : %s", run)
                         raise Exception("Agent run failed")
                     elif run.status == "requires_action":
                         # Handle tool calls from the agent
