@@ -2,5 +2,5 @@
   "name": "Azure Functions DevContainer",
   "dockerFile": "Dockerfile",
   "postCreateCommand": "./.devcontainer/setup.sh",
-  "postStartCommand": "bash .devcontainer/start.sh"
+  "postStartCommand": "sh .devcontainer/start.sh"
 }
