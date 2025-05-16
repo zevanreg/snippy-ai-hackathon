@@ -86,7 +86,7 @@ var StorageBlobDataOwner = 'b7e6dc6d-f1e8-4753-8033-0f276bb0955b'
 var StorageQueueDataContributor = '974c5e8b-45b9-4653-ba55-5f855dd0fb88'
 
 // Allow access from api to blob storage using a managed identity
-module blobRoleAssignmentApi 'app/rbac/storage-Access.bicep' = {
+module blobRoleAssignmentApi 'app/rbac/storage-access.bicep' = {
   name: 'blobRoleAssignmentapi'
   scope: rg
   params: {
@@ -97,7 +97,7 @@ module blobRoleAssignmentApi 'app/rbac/storage-Access.bicep' = {
 }
 
 // Allow access from api to queue storage using a managed identity
-module queueRoleAssignmentApi 'app/rbac/storage-Access.bicep' = {
+module queueRoleAssignmentApi 'app/rbac/storage-access.bicep' = {
   name: 'queueRoleAssignmentapi'
   scope: rg
   params: {
@@ -185,7 +185,7 @@ module aiProject './app/ai/ai-project.bicep' = {
 
 // Allow access from api to AI Project
 var AzureAiDeveloper = '64702f94-c441-49e6-a78b-ef80e0188fee'
-module aiProjectRoleAssignmentApi 'app/rbac/ai-project-Access.bicep' = {
+module aiProjectRoleAssignmentApi 'app/rbac/ai-project-access.bicep' = {
   name: 'aiProjectRoleAssignmentApi'
   scope: rg
   params: {
