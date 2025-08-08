@@ -33,6 +33,25 @@ from agents import deep_wiki, code_style  # Modules for AI agent operations
 # This is the main entry point for all function definitions
 app = func.FunctionApp()
 
+# Register additional blueprints for hackathon challenges
+try:
+	from functions import bp_embeddings as _bp_embeddings
+	app.register_blueprint(_bp_embeddings.bp)
+except Exception as _e:
+	logging.warning(f"Embeddings blueprint not registered: {_e}")
+
+try:
+	from functions import bp_ingestion as _bp_ingestion
+	app.register_blueprint(_bp_ingestion.bp)
+except Exception as _e:
+	logging.warning(f"Ingestion blueprint not registered: {_e}")
+
+try:
+	from routes import query as _bp_query
+	app.register_blueprint(_bp_query.bp)
+except Exception as _e:
+	logging.warning(f"Query blueprint not registered: {_e}")
+
 # =============================================================================
 # CONSTANTS AND UTILITY CLASSES
 # =============================================================================

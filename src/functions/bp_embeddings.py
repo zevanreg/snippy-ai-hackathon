@@ -1,0 +1,134 @@
+"""Embeddings orchestration blueprint.
+
+- Orchestrator: sync def using yield + context.task_all
+- Activities: async def and JSON-serialisable
+- HTTP starter returns durable check status response
+"""
+from __future__ import annotations
+
+import json
+import logging
+import os
+from typing import Generator, Any
+
+import azure.functions as func
+import azure.durable_functions as df
+
+from data import cosmos_ops
+
+bp = func.Blueprint()
+
+CHUNK_SIZE = int(os.environ.get("CHUNK_SIZE", "800"))
+
+
+@bp.orchestration_trigger(context_name="context")
+def embeddings_orchestrator(context: df.DurableOrchestrationContext) -> Generator[Any, Any, dict]:
+    """Fan-out/fan-in to embed chunks and persist a snippet."""
+    payload = context.get_input() or {}
+    project_id: str = payload.get("projectId", "default-project")
+    name: str = payload.get("name", "unnamed")
+    text: str = payload.get("text", "")
+
+    logging.info(f"ORCH start name={name} project={project_id} length={len(text)}")
+
+    # Chunk deterministically
+    chunks = [text[i : i + CHUNK_SIZE] for i in range(0, len(text), CHUNK_SIZE)] or [""]
+
+    # Fan-out embedding calls
+    tasks = [
+        context.call_activity("embed_chunk_activity", {"chunkIndex": i, "text": ch})
+        for i, ch in enumerate(chunks)
+    ]
+    embeddings: list[list[float]] = yield context.task_all(tasks)
+
+    # Aggregate embeddings (simple mean vector)
+    agg: list[float] = []
+    if embeddings and embeddings[0]:
+        dim = len(embeddings[0])
+        sums = [0.0] * dim
+        for vec in embeddings:
+            for j in range(dim):
+                sums[j] += float(vec[j])
+        agg = [s / len(embeddings) for s in sums]
+
+    # Persist via activity (keeps I/O out of orchestrator)
+    result: dict = yield context.call_activity(
+        "persist_snippet_activity",
+        {"projectId": project_id, "name": name, "code": text, "embedding": agg},
+    )
+
+    logging.info("ORCH done name=%s chunks=%d", name, len(chunks))
+    return result
+
+
+@bp.activity_trigger(input_name="data")
+async def embed_chunk_activity(data: dict) -> list[float]:
+    """Generate an embedding for a text chunk (async)."""
+    from azure.identity.aio import DefaultAzureCredential
+    from azure.ai.projects.aio import AIProjectClient
+    # Prefer async inference client sourced from project
+
+    text: str = (data or {}).get("text", "")
+    if not text:
+        return []
+
+    if os.environ.get("DISABLE_OPENAI") == "1":
+        # Return a tiny deterministic vector for tests
+        return [0.0, 1.0, 0.0]
+
+    model = os.environ.get("EMBEDDING_MODEL_DEPLOYMENT_NAME")
+    conn = os.environ.get("PROJECT_CONNECTION_STRING")
+    if not model or not conn:
+        logging.error("Missing EMBEDDING_MODEL_DEPLOYMENT_NAME or PROJECT_CONNECTION_STRING")
+        return []
+
+    try:
+        async with DefaultAzureCredential() as cred:
+            async with AIProjectClient.from_connection_string(credential=cred, conn_str=conn) as proj:
+                async with await proj.inference.get_embeddings_client() as embeds:
+                    rsp = await embeds.embed(model=model, input=[text])
+                    if not rsp.data or not rsp.data[0].embedding:
+                        return []
+                    return list(rsp.data[0].embedding)
+    except Exception as e:
+        logging.error("Embedding failed: %s", e, exc_info=True)
+        return []
+
+
+@bp.activity_trigger(input_name="data")
+async def persist_snippet_activity(data: dict) -> dict:
+    """Persist snippet + embedding to Cosmos (async)."""
+    name: str = (data or {}).get("name", "unnamed")
+    project_id: str = (data or {}).get("projectId", "default-project")
+    code: str = (data or {}).get("code", "")
+    embedding: list[float] = (data or {}).get("embedding", [])
+
+    try:
+        result = await cosmos_ops.upsert_document(
+            name=name, project_id=project_id, code=code, embedding=embedding
+        )
+        return {"ok": True, "id": result.get("id", name)}
+    except Exception as e:
+        logging.error("Persist failed: %s", e, exc_info=True)
+        return {"ok": False, "error": str(e)}
+
+
+@bp.route(route="orchestrators/embeddings", methods=["POST"], auth_level=func.AuthLevel.FUNCTION)
+@bp.durable_client_input(client_name="client")
+async def http_start_embeddings(req: func.HttpRequest, client: df.DurableOrchestrationClient) -> func.HttpResponse:
+    """HTTP starter for embeddings orchestrator."""
+    try:
+        body = req.get_json()
+        function_name = "embeddings_orchestrator"
+        # Start orchestration (start_new may be async depending on SDK)
+        try:
+            instance_id = await client.start_new(function_name=function_name, instance_id=None, client_input=body)
+        except TypeError:
+            # Fallback if start_new is sync
+            instance_id = client.start_new(function_name=function_name, instance_id=None, client_input=body)
+        logging.info("Started orchestration with ID = %s", instance_id)
+        # Important: do not await this sync method
+        return client.create_check_status_response(req, instance_id)
+    except Exception as e:
+        logging.error("HTTP starter error: %s", e, exc_info=True)
+        return func.HttpResponse(body=json.dumps({"error": str(e)}), mimetype="application/json", status_code=500)

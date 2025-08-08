@@ -6,12 +6,23 @@
     "PYTHON_ENABLE_WORKER_EXTENSIONS": "True",
     "COSMOS_DATABASE_NAME": "dev-snippet-db",
     "COSMOS_CONTAINER_NAME": "code-snippets",
+    "COSMOS_VECTOR_TOP_K": "30",
     "BLOB_CONTAINER_NAME": "snippet-backups",
     "EMBEDDING_MODEL_DEPLOYMENT_NAME": "text-embedding-3-small",
     "AGENTS_MODEL_DEPLOYMENT_NAME": "gpt-4o",
     "COSMOS_ENDPOINT": "https://<cosmos-account-name>.documents.azure.com:443/",
     "PROJECT_CONNECTION_STRING": "<region>.api.azureml.ms;<workspace-id>;<project-name>;<project-name>",
     "AZURE_OPENAI_ENDPOINT": "https://<service-id>.openai.azure.com/",
-    "AZURE_OPENAI_KEY": "<your-azure-openai-key>"
+    "AZURE_OPENAI_KEY": "<your-azure-openai-key>",
+
+    "VECTOR_TOP_K": "5",
+    "OPENAI_TEMPERATURE": "0.2",
+    "REQUEST_TIMEOUT_SEC": "20",
+    "CHUNK_SIZE": "800",
+    "DISABLE_OPENAI": "0",
+    "INGESTION_CONTAINER": "snippet-input",
+    "MAX_BLOB_MB": "2",
+    "DEFAULT_PROJECT_ID": "default-project",
+    "OPENAI_CHAT_MODEL": "gpt-4o"
   }
 }
