@@ -52,6 +52,12 @@ try:
 except Exception as _e:
 	logging.warning(f"Query blueprint not registered: {_e}")
 
+try:
+    from functions import bp_multi_agent as _bp_multi
+    app.register_blueprint(_bp_multi.bp)
+except Exception as _e:
+    logging.warning(f"Multi-agent blueprint not registered: {_e}")
+
 # =============================================================================
 # CONSTANTS AND UTILITY CLASSES
 # =============================================================================

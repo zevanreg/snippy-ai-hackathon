@@ -16,6 +16,29 @@ TEMP = float(os.environ.get("OPENAI_TEMPERATURE", "0.2"))
 REQ_TIMEOUT = int(os.environ.get("REQUEST_TIMEOUT_SEC", "20"))
 
 
+@bp.route(route="security/rbac-check", methods=["GET"], auth_level=func.AuthLevel.FUNCTION)
+async def http_rbac_check(req: func.HttpRequest) -> func.HttpResponse:
+    """Verify app can read Cosmos container using Managed Identity."""
+    try:
+        # Try a small metadata call to ensure RBAC is valid
+        from data import cosmos_ops
+        container = await cosmos_ops.get_container()
+        # Listing properties is enough to assert access
+        name = getattr(container, 'container_link', None) or 'ok'
+        return func.HttpResponse(
+            body=json.dumps({"ok": True, "container": str(name)}),
+            mimetype="application/json",
+            status_code=200,
+        )
+    except Exception as e:
+        logging.error("RBAC check failed: %s", e, exc_info=True)
+        return func.HttpResponse(
+            body=json.dumps({"ok": False, "error": str(e)}),
+            mimetype="application/json",
+            status_code=403,
+        )
+
+
 @bp.route(route="query", methods=["POST"], auth_level=func.AuthLevel.FUNCTION)
 async def http_query(req: func.HttpRequest) -> func.HttpResponse:
     """Answer a question using vector search and LLM, returning citations."""

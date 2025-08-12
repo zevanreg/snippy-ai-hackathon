@@ -23,6 +23,10 @@
     "INGESTION_CONTAINER": "snippet-input",
     "MAX_BLOB_MB": "2",
     "DEFAULT_PROJECT_ID": "default-project",
-    "OPENAI_CHAT_MODEL": "gpt-4o"
+  "OPENAI_CHAT_MODEL": "gpt-4o",
+  "MAX_AGENT_ITERATIONS": "3",
+  "AGENT_TOKEN_LIMIT": "4000",
+  "ENABLE_CONTENT_FILTER": "0",
+  "MAX_CONCURRENT_AGENTS": "3"
   }
 }
