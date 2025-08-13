@@ -1,6 +1,6 @@
 {
   "name": "Azure Functions DevContainer",
   "dockerFile": "Dockerfile",
-  "postCreateCommand": "sh ./.devcontainer/setup.sh",
+  "postCreateCommand": "bash ./.devcontainer/setup.sh",
   "shutdownAction": "stopContainer"
 }
