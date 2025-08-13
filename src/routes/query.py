@@ -4,10 +4,11 @@ from __future__ import annotations
 import json
 import logging
 import os
-from typing import Any
+from typing import Any, Sequence
 
 import azure.functions as func
 from agents.tools import vector_search as vs
+from azure.ai.inference.models import SystemMessage, UserMessage, ChatRequestMessage
 
 bp = func.Blueprint()
 
@@ -81,7 +82,7 @@ async def _chat_complete(system: str, user: str) -> tuple[str, dict]:
     if os.environ.get("DISABLE_OPENAI") == "1":
         return ("This is a mocked answer.", {"mock": True})
 
-    from azure.identity import DefaultAzureCredential
+    from azure.identity.aio import DefaultAzureCredential
     from azure.ai.projects.aio import AIProjectClient
 
     model = os.environ.get("AGENTS_MODEL_DEPLOYMENT_NAME") or os.environ.get("OPENAI_CHAT_MODEL")
@@ -89,19 +90,23 @@ async def _chat_complete(system: str, user: str) -> tuple[str, dict]:
     if not model or not conn:
         return ("Model or connection not configured.", {"error": True})
 
-    messages = [
-        {"role": "system", "content": system},
-        {"role": "user", "content": user},
+    messages: list[ChatRequestMessage] = [
+        SystemMessage(content=system),
+        UserMessage(content=user),
     ]
 
     try:
         cred = DefaultAzureCredential()
         async with AIProjectClient.from_connection_string(credential=cred, conn_str=conn) as proj:
-            async with await proj.inference.get_chat_completions_client() as chat:
-                rsp = await chat.complete(model=model, messages=messages, temperature=TEMP)
-                text = rsp.choices[0].message.content if rsp.choices else ""
-                usage = getattr(rsp, "usage", {}) or {}
-                return (text, dict(usage))
+            chat = await proj.inference.get_chat_completions_client()
+            rsp = await chat.complete(
+                model=model,
+                messages=messages,
+                temperature=TEMP
+            )
+            text = rsp.choices[0].message.content if rsp.choices else ""
+            usage = getattr(rsp, "usage", {}) or {}
+            return (text, dict(usage))
     except Exception as e:
         logging.error("Chat completion failed: %s", e, exc_info=True)
         return ("", {"error": str(e)})

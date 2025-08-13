@@ -1,19 +1,23 @@
 # Snippy AI Hackathon
 
-A 4-level, hands-on path to build an AI-powered knowledge assistant on Azure Functions (Python v2, blueprint model) with Durable Functions, Cosmos DB vector search, and Azure OpenAI.
+A 6-level, hands-on path to build an enterprise-grade AI-powered knowledge assistant on Azure Functions (Python v2, blueprint model) with Durable Functions, Cosmos DB vector search, Azure OpenAI, and Zero Trust security.
 
 ## Format
-- Duration: 6 hours
+- Duration: 8 hours (core levels L1-L4: 6 hours, advanced levels L5-L6: 2 hours)
 - Teams: 5 people per team
 - Scoring: Points per level
 
 ## Levels
-- Level 1 — Foundation API + Persistence (20pts)
-- Level 2 — Durable Orchestration: Fan-out Embeddings (30pts)
-- Level 3 — Vector Search + Q&A with Citations (30pts)
-- Level 4 — Event-driven Ingestion + Observability (20pts)
-- Level 5 — Agent-to-Agent Communication: Multi-Agent Orchestration (40pts)
-- Level 6 — Zero Trust Network: Private Endpoints + Egress Lockdown (30pts)
+
+### Core Foundation (Required)
+- **Level 1** — Foundation API + Persistence (20pts)
+- **Level 2** — Durable Orchestration: Fan-out Embeddings (30pts)
+- **Level 3** — Vector Search + Q&A with Citations (30pts)
+- **Level 4** — Event-driven Ingestion + Observability (20pts)
+
+### Advanced Enterprise Features (Stretch Goals)
+- **Level 5** — Agent-to-Agent Communication: Multi-Agent Orchestration (40pts)
+- **Level 6** — Zero Trust Network: Private Endpoints + Egress Lockdown (30pts)
 
 See level guides in this folder for detailed tasks, acceptance criteria, and hints.
 
@@ -30,10 +34,26 @@ See level guides in this folder for detailed tasks, acceptance criteria, and hin
 3. Start Functions locally with the VS Code task "func: host start".
 4. Run tests: `python -m pytest -q`.
 
-## Scoring (updated)
-- L1-L4: 100pts (foundation levels)
-- L5: 40pts — multi-agent workflows, communication protocols, guardrails
-- L6: 30pts — zero trust architecture, private networking, compliance
-- **Total: 170pts** (L1-L4 required, L5-L6 stretch goals)
+## Scoring (Updated for 6 Levels)
+- **Core Levels (L1-L4)**: 100pts — foundational features required for basic functionality
+- **L5**: 40pts — advanced multi-agent workflows with communication protocols and guardrails
+- **L6**: 30pts — enterprise zero trust architecture with private networking and compliance
+- **Total Possible: 170pts**
+
+### Progression Strategy
+- **Teams aiming for completion**: Focus on L1-L4 first (6 hours), then attempt L5-L6 (2 hours)
+- **Advanced teams**: Can tackle L5-L6 in parallel with L3-L4 if infrastructure allows
+- **Minimum viable**: L1-L4 provides a fully functional AI knowledge assistant
+
+## Key Technical Differentiators
+
+### Levels 1-4: Foundation Platform
+Build a solid, production-ready AI knowledge assistant with CRUD operations, vector search, and automated ingestion.
+
+### Level 5: AI Agent Orchestration
+Transform your assistant into a multi-agent system where specialized AI agents collaborate on complex tasks like code review, documentation, and testing.
+
+### Level 6: Enterprise Security
+Implement zero trust security with private networking, managed identity, and compliance monitoring suitable for enterprise deployment.
 
 Happy hacking!

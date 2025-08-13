@@ -111,9 +111,14 @@ def multi_agent_orchestrator(context: df.DurableOrchestrationContext) -> Generat
 
 
 @bp.activity_trigger(input_name="data")
-async def load_snippet_activity(data: dict) -> dict:
+async def load_snippet_activity(data: str) -> dict:
     """Load a snippet by id from Cosmos (async)."""
-    name: str = (data or {}).get("name", "")
+    try:
+        data_dict = json.loads(data) if data else {}
+    except json.JSONDecodeError:
+        data_dict = {}
+    
+    name: str = data_dict.get("name", "")
     if not name:
         return {}
     try:
@@ -125,10 +130,15 @@ async def load_snippet_activity(data: dict) -> dict:
 
 
 @bp.activity_trigger(input_name="data")
-async def code_review_agent_activity(data: dict) -> dict:
+async def code_review_agent_activity(data: str) -> dict:
     """Analyze code for issues; return structured findings (async)."""
-    code: str = (data or {}).get("code", "")
-    corr: str = (data or {}).get("correlationId", "")
+    try:
+        data_dict = json.loads(data) if data else {}
+    except json.JSONDecodeError:
+        data_dict = {}
+    
+    code: str = data_dict.get("code", "")
+    corr: str = data_dict.get("correlationId", "")
     if os.environ.get("DISABLE_OPENAI") == "1":
         # Deterministic mock results
         issues = []
@@ -143,11 +153,16 @@ async def code_review_agent_activity(data: dict) -> dict:
 
 
 @bp.activity_trigger(input_name="data")
-async def documentation_agent_activity(data: dict) -> dict:
+async def documentation_agent_activity(data: str) -> dict:
     """Generate docs from code and review findings (async)."""
-    code: str = (data or {}).get("code", "")
-    review: dict = (data or {}).get("review", {})
-    corr: str = (data or {}).get("correlationId", "")
+    try:
+        data_dict = json.loads(data) if data else {}
+    except json.JSONDecodeError:
+        data_dict = {}
+    
+    code: str = data_dict.get("code", "")
+    review: dict = data_dict.get("review", {})
+    corr: str = data_dict.get("correlationId", "")
 
     title = "Code Documentation"
     bullets = [f"Issues found: {len(review.get('issues', []))}"]
@@ -159,11 +174,16 @@ async def documentation_agent_activity(data: dict) -> dict:
 
 
 @bp.activity_trigger(input_name="data")
-async def testing_agent_activity(data: dict) -> dict:
+async def testing_agent_activity(data: str) -> dict:
     """Suggest simple unit tests based on code and review (async)."""
-    code: str = (data or {}).get("code", "")
-    review: dict = (data or {}).get("review", {})
-    corr: str = (data or {}).get("correlationId", "")
+    try:
+        data_dict = json.loads(data) if data else {}
+    except json.JSONDecodeError:
+        data_dict = {}
+    
+    code: str = data_dict.get("code", "")
+    review: dict = data_dict.get("review", {})
+    corr: str = data_dict.get("correlationId", "")
 
     tests: list[dict[str, Any]] = []
     if "def " in code:
@@ -181,10 +201,7 @@ async def http_start_multi_agent(req: func.HttpRequest, client: df.DurableOrches
     try:
         body = req.get_json()
         fn = "multi_agent_orchestrator"
-        try:
-            instance_id = await client.start_new(function_name=fn, instance_id=None, client_input=body)
-        except TypeError:
-            instance_id = client.start_new(function_name=fn, instance_id=None, client_input=body)
+        instance_id = await client.start_new(orchestration_function_name=fn, instance_id=None, client_input=body)
         logging.info("Started L5 orchestration id=%s", instance_id)
         return client.create_check_status_response(req, instance_id)
     except Exception as e:
