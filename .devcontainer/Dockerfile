@@ -3,7 +3,7 @@ FROM mcr.microsoft.com/devcontainers/python:3.11
 
 # Install system dependencies
 RUN apt-get update \
-    && apt-get install -y curl gnupg2 build-essential \
+    && apt-get install -y curl gnupg2 build-essential gh \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Azure Functions Core Tools v4
