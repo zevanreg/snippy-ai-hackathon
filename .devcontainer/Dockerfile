@@ -18,6 +18,9 @@ RUN curl -fsSL https://aka.ms/install-azd.sh | bash
 
 RUN azd version
 
+# Install Azure CLI
+RUN curl -sL https://aka.ms/InstallAzureCLIDeb | bash
+
 # Install uv (Python package manager)
 RUN pip install --no-cache-dir uv
 
