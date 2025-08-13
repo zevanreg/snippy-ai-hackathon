@@ -5,19 +5,18 @@ A 6-level, hands-on path to build an enterprise-grade AI-powered knowledge assis
 ## Format
 - Duration: 8 hours (core levels L1-L4: 6 hours, advanced levels L5-L6: 2 hours)
 - Teams: 5 people per team
-- Scoring: Points per level
 
 ## Levels
 
 ### Core Foundation (Required)
-- **Level 1** — Foundation API + Persistence (20pts)
-- **Level 2** — Durable Orchestration: Fan-out Embeddings (30pts)
-- **Level 3** — Vector Search + Q&A with Citations (30pts)
-- **Level 4** — Event-driven Ingestion + Observability (20pts)
+- **Level 1** — Foundation API + Persistence
+- **Level 2** — Durable Orchestration: Fan-out Embeddings
+- **Level 3** — Vector Search + Q&A with Citations
+- **Level 4** — Event-driven Ingestion + Observability
 
 ### Advanced Enterprise Features (Stretch Goals)
-- **Level 5** — Agent-to-Agent Communication: Multi-Agent Orchestration (40pts)
-- **Level 6** — Zero Trust Network: Private Endpoints + Egress Lockdown (30pts)
+- **Level 5** — Agent-to-Agent Communication: Multi-Agent Orchestration
+- **Level 6** — Zero Trust Network: Private Endpoints + Egress Lockdown
 
 See level guides in this folder for detailed tasks, acceptance criteria, and hints.
 
@@ -34,13 +33,7 @@ See level guides in this folder for detailed tasks, acceptance criteria, and hin
 3. Start Functions locally with the VS Code task "func: host start".
 4. Run tests: `python -m pytest -q`.
 
-## Scoring (Updated for 6 Levels)
-- **Core Levels (L1-L4)**: 100pts — foundational features required for basic functionality
-- **L5**: 40pts — advanced multi-agent workflows with communication protocols and guardrails
-- **L6**: 30pts — enterprise zero trust architecture with private networking and compliance
-- **Total Possible: 170pts**
-
-### Progression Strategy
+## Completion Strategy
 - **Teams aiming for completion**: Focus on L1-L4 first (6 hours), then attempt L5-L6 (2 hours)
 - **Advanced teams**: Can tackle L5-L6 in parallel with L3-L4 if infrastructure allows
 - **Minimum viable**: L1-L4 provides a fully functional AI knowledge assistant
