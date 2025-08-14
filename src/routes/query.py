@@ -4,16 +4,40 @@ from __future__ import annotations
 import json
 import logging
 import os
-from typing import Any
+from typing import Any, Sequence
 
 import azure.functions as func
 from agents.tools import vector_search as vs
+from azure.ai.inference.models import SystemMessage, UserMessage, ChatRequestMessage
 
 bp = func.Blueprint()
 
 TOP_K = int(os.environ.get("VECTOR_TOP_K", os.environ.get("COSMOS_VECTOR_TOP_K", "5")))
 TEMP = float(os.environ.get("OPENAI_TEMPERATURE", "0.2"))
 REQ_TIMEOUT = int(os.environ.get("REQUEST_TIMEOUT_SEC", "20"))
+
+
+@bp.route(route="security/rbac-check", methods=["GET"], auth_level=func.AuthLevel.FUNCTION)
+async def http_rbac_check(req: func.HttpRequest) -> func.HttpResponse:
+    """Verify app can read Cosmos container using Managed Identity."""
+    try:
+        # Try a small metadata call to ensure RBAC is valid
+        from data import cosmos_ops
+        container = await cosmos_ops.get_container()
+        # Listing properties is enough to assert access
+        name = getattr(container, 'container_link', None) or 'ok'
+        return func.HttpResponse(
+            body=json.dumps({"ok": True, "container": str(name)}),
+            mimetype="application/json",
+            status_code=200,
+        )
+    except Exception as e:
+        logging.error("RBAC check failed: %s", e, exc_info=True)
+        return func.HttpResponse(
+            body=json.dumps({"ok": False, "error": str(e)}),
+            mimetype="application/json",
+            status_code=403,
+        )
 
 
 @bp.route(route="query", methods=["POST"], auth_level=func.AuthLevel.FUNCTION)
@@ -58,7 +82,7 @@ async def _chat_complete(system: str, user: str) -> tuple[str, dict]:
     if os.environ.get("DISABLE_OPENAI") == "1":
         return ("This is a mocked answer.", {"mock": True})
 
-    from azure.identity import DefaultAzureCredential
+    from azure.identity.aio import DefaultAzureCredential
     from azure.ai.projects.aio import AIProjectClient
 
     model = os.environ.get("AGENTS_MODEL_DEPLOYMENT_NAME") or os.environ.get("OPENAI_CHAT_MODEL")
@@ -66,19 +90,23 @@ async def _chat_complete(system: str, user: str) -> tuple[str, dict]:
     if not model or not conn:
         return ("Model or connection not configured.", {"error": True})
 
-    messages = [
-        {"role": "system", "content": system},
-        {"role": "user", "content": user},
+    messages: list[ChatRequestMessage] = [
+        SystemMessage(content=system),
+        UserMessage(content=user),
     ]
 
     try:
         cred = DefaultAzureCredential()
         async with AIProjectClient.from_connection_string(credential=cred, conn_str=conn) as proj:
-            async with await proj.inference.get_chat_completions_client() as chat:
-                rsp = await chat.complete(model=model, messages=messages, temperature=TEMP)
-                text = rsp.choices[0].message.content if rsp.choices else ""
-                usage = getattr(rsp, "usage", {}) or {}
-                return (text, dict(usage))
+            chat = await proj.inference.get_chat_completions_client()
+            rsp = await chat.complete(
+                model=model,
+                messages=messages,
+                temperature=TEMP
+            )
+            text = rsp.choices[0].message.content if rsp.choices else ""
+            usage = getattr(rsp, "usage", {}) or {}
+            return (text, dict(usage))
     except Exception as e:
         logging.error("Chat completion failed: %s", e, exc_info=True)
         return ("", {"error": str(e)})

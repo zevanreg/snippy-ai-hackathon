@@ -21,7 +21,11 @@ Goal: Blob-triggered ingestion that orchestrates embeddings and indexing; add te
 
 ---
 
-## Quickstart (local)
+## Deployment Options
+
+### Option 1: Local Development
+
+#### Quickstart (local)
 Pre-reqs:
 - Azurite (VS Code extension) or Azure Storage account. For local dev, keep `AzureWebJobsStorage=UseDevelopmentStorage=true`.
 - Container name in env `INGESTION_CONTAINER` (default `snippet-input`).
@@ -49,6 +53,44 @@ Steps (Windows PowerShell + Azure CLI):
 - For HTTP-driven orchestrations you’d poll the status URL; for blob-driven, use logs/App Insights.
 
 Tip: To run without external AI calls, set `DISABLE_OPENAI=1` in `local.settings.json`.
+
+### Option 2: Cloud Deployment with AZD
+
+```bash
+# Deploy to Azure with full observability
+azd auth login
+azd up
+```
+
+#### Benefits of Cloud Deployment:
+- **Real Azure Storage**: Production blob triggers instead of Azurite
+- **Application Insights**: Full telemetry and monitoring
+- **Real AI Services**: Actual embeddings and processing
+- **Managed Identity**: Secure, keyless authentication
+- **Production Performance**: Realistic scaling and performance
+
+#### Cloud Testing Steps:
+1) Upload a blob to your Azure Storage container:
+   ```bash
+   # Get storage connection string from azd output
+   az storage blob upload --file sample.md --container-name snippet-input --name sample.md --connection-string "YOUR_STORAGE_CONNECTION_STRING" --overwrite
+   ```
+
+2) Monitor in Application Insights:
+   - Go to Azure Portal → Your Application Insights resource
+   - Navigate to Logs and run KQL queries:
+   ```kusto
+   traces
+   | where timestamp > ago(1h)
+   | where message has "Ingestion started orchestration"
+   | project timestamp, severityLevel, message
+   | order by timestamp desc
+   ```
+
+3) Verify end-to-end flow:
+   - Blob upload → Function trigger → Durable orchestration → Cosmos persistence
+   - Check Azure Functions logs for orchestration IDs
+   - Verify data in Cosmos DB
 
 ## Observability
 - Set `APPINSIGHTS_CONNECTION_STRING` in `src/local.settings.json` to send telemetry to Application Insights.

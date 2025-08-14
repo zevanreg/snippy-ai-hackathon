@@ -3,7 +3,7 @@ FROM mcr.microsoft.com/devcontainers/python:3.11
 
 # Install system dependencies
 RUN apt-get update \
-    && apt-get install -y curl gnupg2 build-essential \
+    && apt-get install -y curl gnupg2 build-essential gh \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Azure Functions Core Tools v4
@@ -17,6 +17,9 @@ RUN curl -sL https://deb.nodesource.com/setup_18.x | bash - \
 RUN curl -fsSL https://aka.ms/install-azd.sh | bash
 
 RUN azd version
+
+# Install Azure CLI
+RUN curl -sL https://aka.ms/InstallAzureCLIDeb | bash
 
 # Install uv (Python package manager)
 RUN pip install --no-cache-dir uv

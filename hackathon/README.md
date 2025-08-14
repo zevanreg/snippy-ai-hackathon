@@ -1,17 +1,22 @@
 # Snippy AI Hackathon
 
-A 4-level, hands-on path to build an AI-powered knowledge assistant on Azure Functions (Python v2, blueprint model) with Durable Functions, Cosmos DB vector search, and Azure OpenAI.
+A 6-level, hands-on path to build an enterprise-grade AI-powered knowledge assistant on Azure Functions (Python v2, blueprint model) with Durable Functions, Cosmos DB vector search, Azure OpenAI, and Zero Trust security.
 
 ## Format
-- Duration: 6 hours
+- Duration: 8 hours (core levels L1-L4: 6 hours, advanced levels L5-L6: 2 hours)
 - Teams: 5 people per team
-- Scoring: Points per level
 
 ## Levels
-- Level 1 — Foundation API + Persistence
-- Level 2 — Durable Orchestration: Fan-out Embeddings
-- Level 3 — Vector Search + Q&A with Citations
-- Level 4 — Event-driven Ingestion + Observability
+
+### Core Foundation (Required)
+- **Level 1** — Foundation API + Persistence
+- **Level 2** — Durable Orchestration: Fan-out Embeddings
+- **Level 3** — Vector Search + Q&A with Citations
+- **Level 4** — Event-driven Ingestion + Observability
+
+### Advanced Enterprise Features (Stretch Goals)
+- **Level 5** — Agent-to-Agent Communication: Multi-Agent Orchestration
+- **Level 6** — Zero Trust Network: Private Endpoints + Egress Lockdown
 
 See level guides in this folder for detailed tasks, acceptance criteria, and hints.
 
@@ -23,15 +28,38 @@ See level guides in this folder for detailed tasks, acceptance criteria, and hin
 - No secrets in code, no prints. Prefer async Azure SDKs.
 
 ## Getting started
+
+### Local Development (All Levels)
 1. Copy `src/local.settings.example.json` to `src/local.settings.json` and fill secrets.
 2. Install deps: `pip install -r src/requirements.txt`.
 3. Start Functions locally with the VS Code task "func: host start".
 4. Run tests: `python -m pytest -q`.
 
-## Scoring (suggested)
-- L1: 20pts — endpoints, tests, logging, env usage
-- L2: 30pts — durable pattern, async activities, tests
-- L3: 30pts — vector search + Q&A, retries, tests
-- L4: 20pts — blob trigger, telemetry, resilience, tests
+### Cloud Deployment with AZD (All Levels)
+1. Install [Azure Developer CLI](https://aka.ms/install-azd)
+2. Authenticate: `azd auth login`
+3. Deploy everything: `azd up`
+4. Test against your deployed Function App endpoints
+
+**Benefits of Cloud Deployment:**
+- **Levels 1-4**: Real Azure services (Cosmos DB, Storage, OpenAI) instead of local emulation
+- **Levels 5-6**: Advanced features (multi-agent, Zero Trust) require cloud deployment
+
+## Completion Strategy
+- **Teams aiming for completion**: Focus on L1-L4 first (6 hours), then attempt L5-L6 (2 hours)
+- **Advanced teams**: Can tackle L5-L6 in parallel with L3-L4 if infrastructure allows
+- **Minimum viable**: L1-L4 provides a fully functional AI knowledge assistant
+- **Deployment flexibility**: All levels support both local development and cloud deployment via AZD
+
+## Key Technical Differentiators
+
+### Levels 1-4: Foundation Platform
+Build a solid, production-ready AI knowledge assistant with CRUD operations, vector search, and automated ingestion.
+
+### Level 5: AI Agent Orchestration
+Transform your assistant into a multi-agent system where specialized AI agents collaborate on complex tasks like code review, documentation, and testing.
+
+### Level 6: Enterprise Security
+Implement zero trust security with private networking, managed identity, and compliance monitoring suitable for enterprise deployment.
 
 Happy hacking!

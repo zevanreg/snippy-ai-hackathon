@@ -15,6 +15,7 @@ cat > src/local.settings.json << EOF
   "IsEncrypted": false,
   "Values": {
     "AzureWebJobsSecretStorageType": "files",
+  "AzureWebJobsStorage": "${AZUREWEBJOBSSTORAGE:-UseDevelopmentStorage=true}",
     "FUNCTIONS_WORKER_RUNTIME": "python",
     "PYTHON_ENABLE_WORKER_EXTENSIONS": "True",
     "COSMOS_DATABASE_NAME": "dev-snippet-db",

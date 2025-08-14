@@ -1,18 +1,16 @@
-# Technical Pitch — Snippy AI Hackathon
+# Technical Pitch — Snippy AI Hackathon (Extended Edition)
 
 Audience: Tech leads, staff/principal engineers, solution architects
 
-Purpose: Validate an Azure-native reference for AI-grounded knowledge APIs built on serverless primitives with production-ready patterns (durability, observability, RBAC, cost-awareness).
+Purpose: Validate an Azure-native reference for enterprise-grade AI-grounded knowledge APIs built on serverless primitives with production-ready patterns (durability, observability, RBAC, cost-awareness, multi-agent orchestration, and zero trust security).
 
 ---
 
 ## What we build (reference outcome)
 - An Azure Functions (Python v2, blueprint) backend that:
-  - Ingests short docs/snippets (HTTP + Blob trigger)
-  - Fans-out to async embedding activities via Durable Functions
-  - Stores metadata + vectors in Cosmos DB (DiskANN vector index)
-  - Answers questions via vector search + Azure OpenAI chat with citations
-  - Emits telemetry to Application Insights (logs, events, metrics)
+  - **Core Platform (L1-L4)**: Ingests docs/snippets, fans-out embeddings, vector search with citations, blob triggers, observability
+  - **Advanced AI (L5)**: Multi-agent orchestration with code review, documentation, and testing agents
+  - **Enterprise Security (L6)**: Zero trust architecture with private endpoints, managed identity, compliance monitoring
 
 ## Architecture (incremental)
 - Compute: Azure Functions
@@ -31,11 +29,17 @@ Purpose: Validate an Azure-native reference for AI-grounded knowledge APIs built
 - Config via env only; no secrets in code; Python 3.11, logging at INFO
 - Blueprint model: single `app = func.FunctionApp()` and `app.register_blueprint(bp)`
 
-## API surface (Level 1 & 3)
-- POST /snippets → save snippet with embedding (HTTP + embeddings_input decorator)
+## API surface (Levels 1-6)
+**Core Platform (L1-L4):**
+- POST /snippets → save snippet with embedding
 - GET /snippets/{name} → retrieve by id
-- POST /query {question, projectId} → answer + citations [{id, score}]
-- POST /orchestrators/embeddings → starts durable instance (202 + status URLs)
+- POST /query {question, projectId} → answer + citations
+- POST /orchestrators/embeddings → durable embeddings processing
+
+**Advanced Features (L5-L6):**
+- POST /orchestrators/multi-agent-review → multi-agent code review workflow
+- GET /security/network-status → zero trust network validation
+- GET /compliance/security-posture → security compliance reporting
 
 ## Data model (Cosmos)
 - Container: `code-snippets`
@@ -85,20 +89,32 @@ Purpose: Validate an Azure-native reference for AI-grounded knowledge APIs built
 - Async SDK usage across external calls; no awaiting sync APIs
 - Deterministic API contracts and error handling
 
-## Event format (1-day sample)
+## Event format (extended 8-hour version)
+**Core Platform (6 hours):**
 - 09:30 Kickoff: patterns and guardrails
-- 10:00 L1 API + persistence
-- 11:30 L2 durable fan-out embeddings
-- 13:30 L3 vector search + Q&A
-- 15:30 L4 blob ingestion + telemetry
-- 17:00 Demos, scoring, next steps
+- 10:00 L1 API + persistence (90 min)
+- 11:30 L2 durable fan-out embeddings (120 min)
+- 13:30 L3 vector search + Q&A (120 min)
+- 15:30 L4 blob ingestion + telemetry (90 min)
+
+**Advanced Features (2 hours):**
+- 17:00 L5 multi-agent orchestration (optional, 120 min)
+- 17:00 L6 zero trust security (optional, 90 min)
+- 18:30 Demos, scoring, next steps
+
+**Alternative 6-hour format:**
+- Focus on L1-L4 completion with L5-L6 as stretch goals
+- Teams choose L5 OR L6 based on interests (AI vs Security)
 
 ## Deliverables
-- Working repo (this) with levels 1–4, tests, quickstarts
-- Reusable blueprints: orchestrator, activities, blob trigger, query route
-- App Insights queries and operational guidance
+- Working repo with levels 1–6, comprehensive tests, deployment automation
+- **Core Platform**: Reusable blueprints for orchestration, activities, blob triggers, query routes
+- **Advanced AI**: Multi-agent workflow templates and communication protocols
+- **Enterprise Security**: Zero trust Bicep templates and compliance monitoring
+- Production deployment guides and operational runbooks
 
 ## Links
-- Level guides: `hackathon/level-1.md` … `level-4.md`
+- Level guides: `hackathon/level-1.md` … `level-6.md`
 - Quickstart: `hackathon/quickstart.md`
 - Tests collection: `src/tests/test.http`
+- Deployment: `setup-azure-services.md`, `deploy-azure.sh`

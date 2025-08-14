@@ -31,8 +31,10 @@ Goal: Orchestrate chunking and embeddings via Durable Functions.
 
 ---
 
-## Quickstart (local)
-Start the orchestration and check status URLs.
+## Deployment Options
+
+### Option 1: Local Development
+Start the orchestration and check status URLs locally.
 
 ```powershell
 $body = @{ projectId = "default-project"; name = "hello.txt"; text = "Hello world" } | ConvertTo-Json
@@ -40,3 +42,22 @@ $r = Invoke-WebRequest -Method Post -Uri http://localhost:7071/api/orchestrators
 $r.StatusCode  # expected 202
 $r.Headers["Location"]  # status endpoint
 ```
+
+### Option 2: Cloud Deployment with AZD
+```bash
+# Deploy to Azure
+azd auth login
+azd up
+
+# Test orchestration in the cloud
+$functionAppUrl = "https://your-function-app.azurewebsites.net"
+$body = @{ projectId = "default-project"; name = "hello.txt"; text = "Hello world" } | ConvertTo-Json
+$r = Invoke-WebRequest -Method Post -Uri "$functionAppUrl/api/orchestrators/embeddings" -ContentType application/json -Body $body
+$r.StatusCode  # expected 202
+$r.Headers["Location"]  # status endpoint
+
+# Check orchestration status
+Invoke-RestMethod -Uri $r.Headers["Location"][0]
+```
+
+Note: With cloud deployment, you get real Azure OpenAI embeddings instead of mocked responses.

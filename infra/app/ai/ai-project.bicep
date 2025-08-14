@@ -151,3 +151,4 @@ output aiHubId string = aiHub.id
 output aiProjectName string = aiProject.name
 output aiProjectId string = aiProject.id
 output projectConnectionString string = aiProject.tags.ProjectConnectionString 
+output keyVaultId string = keyVault.outputs.resourceId

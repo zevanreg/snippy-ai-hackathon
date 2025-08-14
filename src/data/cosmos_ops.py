@@ -6,6 +6,7 @@
 
 import os
 import logging
+from typing import Any
 from azure.cosmos.aio import CosmosClient
 from azure.cosmos import PartitionKey
 from azure.cosmos.exceptions import CosmosResourceNotFoundError
@@ -73,36 +74,36 @@ async def get_container():
             logger.info(f"Getting container '{COSMOS_CONTAINER_NAME}' from database '{COSMOS_DATABASE_NAME}'")
             
             database = await get_database()
-            
             # Create container with vector index configuration
             logger.debug("Creating container with vector index configuration")
+            indexing_policy: Any = {
+                "indexingMode": "consistent",
+                "automatic": True,
+                "includedPaths": [
+                    {
+                        "path": "/*"
+                    }
+                ],
+                "excludedPaths": [
+                    {
+                        "path": "/embedding/*"
+                    }
+                ],
+                "vectorEmbeddingPolicy": {
+                    "vectorEmbeddings": [
+                        {
+                            "path": "/embedding",
+                            "dataType": "int8",
+                            "dimensions": 1536,
+                            "distanceFunction": "cosine"
+                        }
+                    ]
+                }
+            }
             _container = await database.create_container_if_not_exists(
                 id=COSMOS_CONTAINER_NAME,
                 partition_key=PartitionKey(path="/name"),
-                indexing_policy={
-                    "indexingMode": "consistent",
-                    "automatic": True,
-                    "includedPaths": [
-                        {
-                            "path": "/*"
-                        }
-                    ],
-                    "excludedPaths": [
-                        {
-                            "path": "/embedding/*"
-                        }
-                    ],
-                    "vectorEmbeddingPolicy": {
-                        "vectorEmbeddings": [
-                            {
-                                "path": "/embedding",
-                                "dataType": "int8",
-                                "dimensions": 1536,
-                                "distanceFunction": "cosine"
-                            }
-                        ]
-                    }
-                }
+                indexing_policy=indexing_policy
             )
             
             logger.info("Successfully configured container with vector index")
@@ -178,9 +179,40 @@ async def upsert_document(name: str, project_id: str, code: str, embedding: list
         logger.error(f"Error upserting document: {str(e)}", exc_info=True)
         raise
 
+# Retrieves all snippets from Cosmos DB
+# Returns a list of all snippet documents
+async def list_all_snippets() -> list[dict]:
+    """
+    Gets all snippets from Cosmos DB.
+    
+    Returns:
+        List of all snippet documents
+        
+    Raises:
+        Exception: If query execution fails
+    """
+    try:
+        logger.info("Retrieving all snippets")
+        
+        container = await get_container()
+        
+        # Query all snippet documents
+        sql = "SELECT c.id, c.name, c.projectId, c.code FROM c WHERE c.type = 'code-snippet'"
+        
+        logger.debug(f"Executing SQL query: {sql}")
+        items_iterable = container.query_items(query=sql)
+        
+        results = [item async for item in items_iterable]
+        logger.info(f"Found {len(results)} snippets")
+        
+        return results
+    except Exception as e:
+        logger.error(f"Error listing snippets: {str(e)}", exc_info=True)
+        raise
+
 # Retrieves a snippet by its id (partition key) from Cosmos DB
 # Returns the document or None if not found
-async def get_snippet_by_id(name: str) -> dict:
+async def get_snippet_by_id(name: str) -> dict | None:
     """
     Gets a snippet from Cosmos DB by id.
     
