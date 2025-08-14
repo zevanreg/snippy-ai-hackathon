@@ -8,7 +8,8 @@
       "extensions": [
         "Azurite.azurite",
         "GitHub.copilot",
-        "GitHub.copilot-chat"
+        "GitHub.copilot-chat",
+        "ms-azuretools.vscode-bicep"
       ]
     }
   },
