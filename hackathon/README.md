@@ -28,15 +28,28 @@ See level guides in this folder for detailed tasks, acceptance criteria, and hin
 - No secrets in code, no prints. Prefer async Azure SDKs.
 
 ## Getting started
+
+### Local Development (All Levels)
 1. Copy `src/local.settings.example.json` to `src/local.settings.json` and fill secrets.
 2. Install deps: `pip install -r src/requirements.txt`.
 3. Start Functions locally with the VS Code task "func: host start".
 4. Run tests: `python -m pytest -q`.
 
+### Cloud Deployment with AZD (All Levels)
+1. Install [Azure Developer CLI](https://aka.ms/install-azd)
+2. Authenticate: `azd auth login`
+3. Deploy everything: `azd up`
+4. Test against your deployed Function App endpoints
+
+**Benefits of Cloud Deployment:**
+- **Levels 1-4**: Real Azure services (Cosmos DB, Storage, OpenAI) instead of local emulation
+- **Levels 5-6**: Advanced features (multi-agent, Zero Trust) require cloud deployment
+
 ## Completion Strategy
 - **Teams aiming for completion**: Focus on L1-L4 first (6 hours), then attempt L5-L6 (2 hours)
 - **Advanced teams**: Can tackle L5-L6 in parallel with L3-L4 if infrastructure allows
 - **Minimum viable**: L1-L4 provides a fully functional AI knowledge assistant
+- **Deployment flexibility**: All levels support both local development and cloud deployment via AZD
 
 ## Key Technical Differentiators
 

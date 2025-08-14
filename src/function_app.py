@@ -143,6 +143,34 @@ tool_properties_wiki_json = json.dumps([prop.to_dict() for prop in tool_properti
 tool_properties_code_style_json = json.dumps([prop.to_dict() for prop in tool_properties_code_style])
 
 # =============================================================================
+# HEALTH CHECK FUNCTIONALITY
+# =============================================================================
+
+# HTTP endpoint for health check
+@app.route(route="health", methods=["GET"], auth_level=func.AuthLevel.ANONYMOUS)
+async def http_health_check(req: func.HttpRequest) -> func.HttpResponse:
+    """
+    Health check endpoint to verify the service is running.
+    
+    Returns:
+        JSON response with status "ok" and 200 status code
+    """
+    try:
+        logging.info("Health check endpoint called")
+        return func.HttpResponse(
+            body=json.dumps({"status": "ok"}),
+            mimetype="application/json",
+            status_code=200
+        )
+    except Exception as e:
+        logging.error(f"Error in health check: {str(e)}")
+        return func.HttpResponse(
+            body=json.dumps({"status": "error", "message": str(e)}),
+            mimetype="application/json",
+            status_code=500
+        )
+
+# =============================================================================
 # SAVE SNIPPET FUNCTIONALITY
 # =============================================================================
 
