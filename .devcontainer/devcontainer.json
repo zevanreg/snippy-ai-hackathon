@@ -2,5 +2,17 @@
   "name": "Azure Functions DevContainer",
   "dockerFile": "Dockerfile",
   "onCreateCommand": "bash ./.devcontainer/setup.sh",
-  "shutdownAction": "stopContainer"
+  "shutdownAction": "stopContainer",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "Azurite.azurite",
+        "GitHub.copilot",
+        "GitHub.copilot-chat"
+      ]
+    }
+  },
+  "features": {
+    "powershell": "latest"
+  }
 }
