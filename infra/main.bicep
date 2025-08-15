@@ -74,6 +74,9 @@ output STORAGE_CONTAINER_SNIPPETBACKUPS string = hackathonResources.outputs.stor
 @description('Cosmos DB account endpoint URL for database operations')
 output COSMOS_ENDPOINT string = hackathonResources.outputs.cosmosEndpoint
 
+@description('Primary access key for the Cosmos DB account. Used for authentication in Cosmos operations')
+output COSMOS_KEY string = hackathonResources.outputs.cosmosKey
+
 @description('Name of the Cosmos DB database containing code snippets')
 output COSMOS_DATABASE_NAME string = hackathonResources.outputs.cosmosDatabaseName
 

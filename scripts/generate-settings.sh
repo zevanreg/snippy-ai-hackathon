@@ -3,6 +3,7 @@
 # Get values from azd environment
 echo "Getting environment values from azd..."
 COSMOS_ENDPOINT=$(azd env get-values | grep COSMOS_ENDPOINT | cut -d'"' -f2)
+COSMOS_KEY=$(azd env get-values | grep COSMOS_KEY | cut -d'"' -f2)
 COSMOS_DATABASE_NAME=$(azd env get-values | grep COSMOS_DATABASE_NAME | cut -d'"' -f2)
 COSMOS_CONTAINER_NAME=$(azd env get-values | grep COSMOS_CONTAINER_NAME | cut -d'"' -f2)
 AI_PROJECT_CONNECTION_STRING=$(azd env get-values | grep AI_PROJECT_CONNECTION_STRING | cut -d'"' -f2)
@@ -31,6 +32,7 @@ cat > src/local.settings.json << EOF
     "EMBEDDING_MODEL_DEPLOYMENT_NAME": "${EMBEDDING_MODEL_DEPLOYMENT_NAME:-text-embedding-3-small}",
     "AGENTS_MODEL_DEPLOYMENT_NAME": "${CHAT_MODEL_DEPLOYMENT_NAME:-gpt-4o}",
     "COSMOS_ENDPOINT": "${COSMOS_ENDPOINT:-https://localhost:8081}",
+    "COSMOS_KEY": "${COSMOS_KEY:-}",
     "PROJECT_CONNECTION_STRING": "${AI_PROJECT_CONNECTION_STRING:-}",
     "AZURE_OPENAI_ENDPOINT": "${AI_FOUNDRY_OPENAI_ENDPOINT:-}",
     "AZURE_OPENAI_KEY": "${AI_FOUNDRY_OPENAI_KEY:-}",

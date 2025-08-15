@@ -10,6 +10,7 @@ from typing import Any
 from azure.cosmos.aio import CosmosClient
 from azure.cosmos import PartitionKey
 from azure.cosmos.exceptions import CosmosResourceNotFoundError
+from azure.core.credentials import AzureKeyCredential
 from azure.identity.aio import DefaultAzureCredential
 
 # Configure logging for this module
@@ -36,7 +37,7 @@ async def get_cosmos_client():
         logger.debug("Creating Cosmos client")
         _cosmos_client = CosmosClient(
             url=os.environ["COSMOS_ENDPOINT"],
-            credential=DefaultAzureCredential()
+            credential=AzureKeyCredential(os.environ["COSMOS_KEY"])
         )
     return _cosmos_client
 

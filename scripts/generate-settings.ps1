@@ -4,6 +4,7 @@
 Write-Host "Getting environment values from azd..."
 $azdValues = azd env get-values
 $COSMOS_ENDPOINT = ($azdValues | Select-String 'COSMOS_ENDPOINT="(.*?)"').Matches.Groups[1].Value
+$COSMOS_KEY = ($azdValues | Select-String 'COSMOS_KEY="(.*?)"').Matches.Groups[1].Value
 $COSMOS_DATABASE_NAME = ($azdValues | Select-String 'COSMOS_DATABASE_NAME="(.*?)"').Matches.Groups[1].Value
 $COSMOS_CONTAINER_NAME = ($azdValues | Select-String 'COSMOS_CONTAINER_NAME="(.*?)"').Matches.Groups[1].Value
 $AI_PROJECT_CONNECTION_STRING = ($azdValues | Select-String 'AI_PROJECT_CONNECTION_STRING="(.*?)"').Matches.Groups[1].Value
@@ -40,6 +41,7 @@ $jsonContent = @"
     "EMBEDDING_MODEL_DEPLOYMENT_NAME": "$EMBEDDING_MODEL_DEPLOYMENT_NAME",
     "AGENTS_MODEL_DEPLOYMENT_NAME": "$CHAT_MODEL_DEPLOYMENT_NAME",
     "COSMOS_ENDPOINT": "$COSMOS_ENDPOINT",
+    "COSMOS_KEY": "$COSMOS_KEY",
     "PROJECT_CONNECTION_STRING": "$AI_PROJECT_CONNECTION_STRING",
     "AZURE_OPENAI_ENDPOINT": "$AI_FOUNDRY_OPENAI_ENDPOINT",
     "AZURE_OPENAI_KEY": "$AI_FOUNDRY_OPENAI_KEY",
