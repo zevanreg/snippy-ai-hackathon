@@ -9,6 +9,7 @@
         "Azurite.azurite",
         "GitHub.copilot",
         "GitHub.copilot-chat",
+        "ms-azuretools.vscode-bicep",
         "ms-python.python",
         "ms-python.vscode-pylance",
         "ms-python.debugpy",
