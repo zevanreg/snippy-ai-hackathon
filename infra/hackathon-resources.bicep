@@ -15,9 +15,33 @@ resource storage 'Microsoft.Storage/storageAccounts@2025-01-01' = {
     minimumTlsVersion: 'TLS1_2'
     allowBlobPublicAccess: false
     supportsHttpsTrafficOnly: true
-  }
+  }  
   tags: tags
 }
+
+// Blob service for storage account
+resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2023-01-01' = {
+  parent: storage
+  name: 'default'
+}
+
+// Blob container for code snippets
+resource blobContainer_snippetBackups 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
+  parent: blobService
+  name: 'snippet-backups'
+  properties: {
+    publicAccess: 'None'
+  }
+}
+
+resource blobContainer_snippetInputs 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
+  parent: blobService
+  name: 'snippet-inputs'
+  properties: {
+    publicAccess: 'None'
+  }
+}
+
 
 // Cosmos DB Account with vector search capabilities
 resource cosmosAccount 'Microsoft.DocumentDB/databaseAccounts@2025-04-15' = {
@@ -127,6 +151,14 @@ resource functionApp 'Microsoft.Web/sites@2024-11-01' = {
           value: 'DefaultEndpointsProtocol=https;AccountName=${storage.name};AccountKey=${storage.listKeys().keys[0].value};EndpointSuffix=core.windows.net'
         }
         {
+          name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
+          value: applicationInsights.properties.InstrumentationKey
+        }
+        {
+          name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
+          value: applicationInsights.properties.ConnectionString
+        }
+        {
           name: 'PYTHON_ENABLE_WORKER_EXTENSIONS'
           value: 'True'
         }
@@ -161,23 +193,10 @@ resource functionApp 'Microsoft.Web/sites@2024-11-01' = {
       }
     }
   }
-  tags: union(tags, { 'azd-service-name': 'api' })
+  tags: union(tags, {
+    'azd-service-name': 'api'
+  })
 }
-
-// RBAC: Grant Function App access to Cosmos DB
-resource cosmosDbContributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(cosmosAccount.id, functionApp.id, 'CosmosDBContributor')
-  scope: cosmosAccount
-  properties: {
-    roleDefinitionId: subscriptionResourceId(
-      'Microsoft.Authorization/roleDefinitions',
-      'b24988ac-6180-42a0-ab88-20f7382dd24c'
-    ) // Cosmos DB Built-in Data Contributor
-    principalId: functionApp.identity.principalId
-    principalType: 'ServicePrincipal'
-  }
-}
-
 module logAnalytics 'br/public:avm/res/operational-insights/workspace:0.7.0' = {
   name: 'loganalytics'
   params: {
@@ -187,20 +206,20 @@ module logAnalytics 'br/public:avm/res/operational-insights/workspace:0.7.0' = {
   }
 }
 
-module applicationInsights 'br/public:avm/res/insights/component:0.4.1' = {
-  name: 'applicationinsights'
-  params: {
-    name: 'appins-${resourceToken}'
-    location: location
-    tags: tags
-    workspaceResourceId: logAnalytics.outputs.resourceId
+resource applicationInsights 'Microsoft.Insights/components@2020-02-02' = {
+  name: 'appins-${resourceToken}'
+  location: location
+  kind: 'web'
+  properties: {
+    Application_Type: 'web'
+    WorkspaceResourceId: logAnalytics.outputs.resourceId
   }
 }
 
 /*
   An AI Foundry resources is a variant of a CognitiveServices/account resource type
 */
-resource aiFoundry 'Microsoft.CognitiveServices/accounts@2025-04-01-preview' = {
+resource aiFoundry 'Microsoft.CognitiveServices/accounts@2025-06-01' = {
   name: 'ai-foundry-snippy'
   location: location
   identity: {
@@ -216,8 +235,9 @@ resource aiFoundry 'Microsoft.CognitiveServices/accounts@2025-04-01-preview' = {
     allowProjectManagement: true
     // Defines developer API endpoint subdomain
     customSubDomainName: 'ai-foundry-snippy-${resourceToken}'
-    disableLocalAuth: true
+    disableLocalAuth: false
   }
+  tags: tags
 }
 
 /*
@@ -225,20 +245,22 @@ resource aiFoundry 'Microsoft.CognitiveServices/accounts@2025-04-01-preview' = {
   Its advisable to create one project right away, so development teams can directly get started.
   Projects may be granted individual RBAC permissions and identities on top of what account provides.
 */
-resource aiProject 'Microsoft.CognitiveServices/accounts/projects@2025-04-01-preview' = {
+resource aiProject 'Microsoft.CognitiveServices/accounts/projects@2025-06-01' = {
   name: 'snippy'
   parent: aiFoundry
   location: location
   identity: {
     type: 'SystemAssigned'
   }
-  properties: {}
+  properties: {    
+  }
+  tags: tags
 }
 
 /*
   Optionally deploy a model to use in playground, agents and other tools.
 */
-resource modelDeployment_gpt4o 'Microsoft.CognitiveServices/accounts/deployments@2024-10-01' = {
+resource modelDeployment_chat 'Microsoft.CognitiveServices/accounts/deployments@2024-10-01' = {
   parent: aiFoundry
   name: 'gpt-4o'
   sku: {
@@ -267,7 +289,7 @@ resource modelDeployment_embedding 'Microsoft.CognitiveServices/accounts/deploym
     }
   }
   dependsOn:[
-    modelDeployment_gpt4o
+    modelDeployment_chat
   ]
 }
 
@@ -281,16 +303,45 @@ resource connection 'Microsoft.CognitiveServices/accounts/connections@2025-06-01
   ]
   properties: {
     category: 'AppInsights'
-    target: applicationInsights.outputs.resourceId
+    target: applicationInsights.id
     authType: 'ApiKey'
     credentials: {
-      key: applicationInsights.outputs.connectionString
+      key: applicationInsights.properties.ConnectionString
     }
     isSharedToAll: true
     metadata: {
       ApiType: 'Azure'
-      ResourceId: applicationInsights.outputs.resourceId
+      ResourceId: applicationInsights.id
     }
+  }
+}
+
+
+// RBAC Assignments
+
+var monitoringMetricsPublisherId = '3913510d-42f4-4e42-8a64-420c390055eb'
+
+resource roleAssignmentAppInsights 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(subscription().id, applicationInsights.id, functionApp.id, monitoringMetricsPublisherId)
+  scope: applicationInsights
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', monitoringMetricsPublisherId)
+    principalId: functionApp.identity.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+// RBAC: Grant Function App access to Cosmos DB
+resource cosmosDbContributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(cosmosAccount.id, functionApp.id, 'CosmosDBContributor')
+  scope: cosmosAccount
+  properties: {
+    roleDefinitionId: subscriptionResourceId(
+      'Microsoft.Authorization/roleDefinitions',
+      'b24988ac-6180-42a0-ab88-20f7382dd24c'
+    ) // Cosmos DB Built-in Data Contributor
+    principalId: functionApp.identity.principalId
+    principalType: 'ServicePrincipal'
   }
 }
 
@@ -344,9 +395,32 @@ resource functionAppAiFoundryUser 'Microsoft.Authorization/roleAssignments@2022-
   }
   dependsOn: [
     modelDeployment_embedding
-    modelDeployment_gpt4o
+    modelDeployment_chat
   ]
 }
+
+
+
+
+output storageAccountName string = storage.name
+output storageConnectionString string = 'DefaultEndpointsProtocol=https;AccountName=${storage.name};AccountKey=${storage.listKeys().keys[0].value};EndpointSuffix=core.windows.net'
+output storageBlobContainerSnippetInputs string = blobContainer_snippetInputs.name
+output storageBlobContainerSnippetBackups string = blobContainer_snippetBackups.name
+
+output cosmosEndpoint string = cosmosAccount.properties.documentEndpoint
+output cosmosDatabaseName string = cosmosDatabase.name
+output cosmosContainerName string = cosmosContainer.name
+
+
+output aiProjectConnectionString string = 'https://${aiFoundry.properties.customSubDomainName}.services.ai.azure.com/api/projects/${aiProject.name}'
+output aiFoundryProjectName string = aiProject.name
+output aiFoundryOpenAiEndpoint string = 'https://${aiFoundry.properties.customSubDomainName}.openai.azure.com'
+output aiFoundryOpenAiKey string = aiFoundry.listKeys().key1
+output embeddingModelDeploymentName string = modelDeployment_embedding.name
+output chatModelDeploymentName string = modelDeployment_chat.name
+output chatModelDeploymentType string = modelDeployment_chat.properties.model.name
+
+
 
 output functionAppUrl string = 'https://${functionApp.properties.defaultHostName}'
 output endpoints array = [
@@ -355,16 +429,6 @@ output endpoints array = [
   'https://${functionApp.properties.defaultHostName}/api/orchestrators/embeddings'
   'https://${functionApp.properties.defaultHostName}/api/query'
 ]
-output storageConnectionString string = 'DefaultEndpointsProtocol=https;AccountName=${storage.name};AccountKey=<WILL_BE_SET>;EndpointSuffix=core.windows.net'
-output storageAccountName string = storage.name
 
-output cosmosEndpoint string = cosmosAccount.properties.documentEndpoint
-output cosmosDatabaseName string = cosmosDatabase.name
-output cosmosContainerName string = cosmosContainer.name
+output appInsightsConnectionString string = applicationInsights.properties.ConnectionString
 
-output appInsightsConnectionString string = applicationInsights.outputs.connectionString
-
-// something like this: https://ai-foundry-snippy-xswd3cnfrredy.services.ai.azure.com/api/projects/snippy
-// openai: https://ai-foundry-snippy-xswd3cnfrredy.openai.azure.com/
-output aiProjectConnectionString string = 'https://${aiFoundry.properties.customSubDomainName}.services.ai.azure.com/api/projects/${aiProject.name}'
-output aiFoundryOpenAiEndpoint string = 'https://${aiFoundry.properties.customSubDomainName}.openai.azure.com'
