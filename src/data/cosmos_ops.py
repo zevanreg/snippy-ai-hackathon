@@ -37,7 +37,7 @@ async def get_cosmos_client():
         logger.debug("Creating Cosmos client")
         _cosmos_client = CosmosClient(
             url=os.environ["COSMOS_ENDPOINT"],
-            credential=AzureKeyCredential(os.environ["COSMOS_KEY"])
+            credential=os.environ["COSMOS_KEY"]
         )
     return _cosmos_client
 
