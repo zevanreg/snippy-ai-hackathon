@@ -12,7 +12,14 @@ Azure Developer CLI (azd) streamlines the deployment of the complete Snippy AI i
 
 ## Quick Start
 
-### 1. Deploy Everything
+### Login
+
+```bash
+# login with Azure CLI so we can authenticate with your user
+az login
+```
+
+### Deploy Everything
 ```bash
 # Login and deploy complete environment
 azd auth login
