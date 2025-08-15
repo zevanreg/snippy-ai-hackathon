@@ -14,7 +14,8 @@
         "ms-python.vscode-pylance",
         "ms-python.debugpy",
         "ms-azuretools.vscode-azurefunctions",
-        "ms-vscode.powershell"
+        "ms-vscode.powershell",
+        "bierner.markdown-mermaid"
       ]
     }
   },
