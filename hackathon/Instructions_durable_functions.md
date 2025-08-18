@@ -4,7 +4,6 @@
 
 Pre-requisites:
 
-- Azurite (VS Code extension) or Azure Storage account. For local dev, keep `AzureWebJobsStorage=UseDevelopmentStorage=true` in settings or use connectionstring belo. **make sure azurite is running for local dev** (extension is installed if using devcontainer)
 - Container name in env `INGESTION_CONTAINER` (default `snippet-input`).
 - devcontainer includes PowerShell - use `pwsh` in terminal to use PS instead of linux shell
 
@@ -27,19 +26,23 @@ Steps (Windows PowerShell + Azure CLI):
 1) Open a second terminal so we can test whether the functions are working. Run the following command:
 
    ```bash
-   curl http://localhost:7071/api/health
+   # Deploy to Azure first
+   azd up
+   
+   # Test the health endpoint
+   curl https://your-function-app.azurewebsites.net/api/health
    ```
 
    You should see a JSON-object containing the status "ok" - this means your functions are up and running!
 
    ```bash
-   (.venv) vscode ➜ /workspaces/snippyX/src (main) $ curl http://localhost:7071/api/health
+   $ curl https://your-function-app.azurewebsites.net/api/health
    {"status": "ok", "timestamp": "2025-08-14T12:30:21.844151"}
    ```
 
-### check storage (azure or azurite)
+### check storage (azure)
 
-1) Store connectionstring in variable for later reference (below is the connection string for azurite - **replace if using azure**)
+1) Store connectionstring in variable for later reference (below is the connection string for Azure Storage)
 
    ```powershell
    # PowerShell

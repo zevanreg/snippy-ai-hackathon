@@ -7,7 +7,7 @@ Common pitfalls and tips:
 - Ensure blueprints are registered exactly once.
 - Log at INFO; include IDs and chunk counts.
 - Use env vars that match `src/local.settings.example.json`.
-- For local dev, use `UseDevelopmentStorage=true` for storage.
+- Deploy to Azure using `azd up` for testing and development.
 
 Timeboxes:
 - L1: 60–90 min, L2: 90–120 min, L3: 120 min, L4: 90 min.

@@ -21,6 +21,7 @@
 # - HTTP endpoints for traditional API access
 # - MCP tools for AI assistant integration
 
+import json
 import logging
 import azure.functions as func
 
@@ -28,41 +29,38 @@ app = func.FunctionApp()
 
 try:
     from functions import bp_snippy
-    
     app.register_blueprint(bp_snippy.app)
     logging.info("Snippy blueprint registered successfully")
 except Exception as _e:
     logging.warning(f"Snippy blueprint not registered: {_e}")
 
+try:
+    from routes import query
+    app.register_blueprint(query.bp)
+    logging.info("Query blueprint registered successfully")
+except Exception as _e:
+    logging.warning(f"Query blueprint not registered: {_e}")
 
-# try:
-#     from functions import bp_embeddings as _bp_embeddings
-#     app.register_blueprint(_bp_embeddings.bp)
-#     logging.info("Embeddings blueprint registered successfully")
-# except Exception as _e:
-#     logging.warning(f"Embeddings blueprint not registered: {_e}")
+try:
+    from functions import bp_embeddings
+    app.register_blueprint(bp_embeddings.bp)
+    logging.info("Embeddings blueprint registered successfully")
+except Exception as _e:
+    logging.warning(f"Embeddings blueprint not registered: {_e}")
 
-# # Temporarily disabled due to blob trigger parameter binding issue
-# # try:
-# #     from functions import bp_ingestion as _bp_ingestion
-# #     app.register_blueprint(_bp_ingestion.bp)
-# #     logging.info("Ingestion blueprint registered successfully")
-# # except Exception as _e:
-# #     logging.warning(f"Ingestion blueprint not registered: {_e}")
+try:
+    from functions import bp_ingestion
+    app.register_blueprint(bp_ingestion.bp)
+    logging.info("Ingestion blueprint registered successfully")
+except Exception as _e:
+    logging.warning(f"Ingestion blueprint not registered: {_e}")
 
-# try:
-# 	from routes import query as _bp_query
-# 	app.register_blueprint(_bp_query.bp)
-# except Exception as _e:
-# 	logging.warning(f"Query blueprint not registered: {_e}")
-
-# try:
-#     from functions import bp_multi_agent as _bp_multi
-#     app.register_blueprint(_bp_multi.bp)
-#     logging.info("Multi-agent blueprint registered successfully")
-# except Exception as _e:
-#     logging.warning(f"Multi-agent blueprint not registered: {_e}")
-
+try:
+    from functions import bp_multi_agent
+    app.register_blueprint(bp_multi_agent.bp)
+    logging.info("Multi-agent blueprint registered successfully")
+except Exception as _e:
+    logging.warning(f"Multi-agent blueprint not registered: {_e}")
 
 
 # =============================================================================

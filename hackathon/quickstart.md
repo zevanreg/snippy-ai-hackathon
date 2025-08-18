@@ -6,21 +6,21 @@ See the full challenge details in respective level files: `level-4.md`, `level-5
 
 ## Core Platform Quickstart (Levels 1-4)
 Pre-reqs:
-- Azurite (VS Code extension) or Azure Storage account. For local dev, keep `AzureWebJobsStorage=UseDevelopmentStorage=true`.
+- Azure Storage account deployed via infrastructure templates
 - Container name in env `INGESTION_CONTAINER` (default `snippet-input`).
 
 Steps (Windows PowerShell + Azure CLI):
 1) Ensure container exists
 
     ```powershell
-    az storage container create --name snippet-input --connection-string UseDevelopmentStorage=true
+    az storage container create --name snippet-input --account-name <your-storage-account>
     ```
 
 2) Create a small test file and upload it
 
     ```powershell
     Set-Content -Path .\sample.md -Value "# Hello\nThis is a tiny doc to ingest."
-    az storage blob upload --file .\sample.md --container-name snippet-input --name sample.md --connection-string UseDevelopmentStorage=true --overwrite
+    az storage blob upload --file .\sample.md --container-name snippet-input --name sample.md --account-name <your-storage-account> --overwrite
     ```
 
 3) Observe function logs
@@ -31,10 +31,10 @@ Steps (Windows PowerShell + Azure CLI):
 - Check the Functions console output for instanceId lines.
 - For HTTP-driven orchestrations you’d poll the status URL; for blob-driven, use logs/App Insights.
 
-Tip: To run without external AI calls, set `DISABLE_OPENAI=1` in `src/local.settings.json`.
+Note: All AI services are configured via Azure infrastructure - no local settings required.
 
 ## Observability
-- Set `APPINSIGHTS_CONNECTION_STRING` in `src/local.settings.json` to send telemetry to Application Insights.
+- Application Insights telemetry is configured automatically via the Azure infrastructure deployment.
 - Useful KQL (in Application Insights → Logs):
 
     ```kusto
@@ -58,7 +58,7 @@ Tip: To run without external AI calls, set `DISABLE_OPENAI=1` in `src/local.sett
 - Optional circuit breaker: environment flag to early-exit on repeated failures.
 
 ## Troubleshooting
-- No trigger on upload (local): ensure Azurite is running and container name matches `INGESTION_CONTAINER`.
+- No trigger on upload: ensure container name matches `INGESTION_CONTAINER` and Azure Storage connection is configured.
 - Unicode issues: ensure `blob.read().decode('utf-8', errors='ignore')` or equivalent.
 - Cosmos errors: verify `COSMOS_ENDPOINT`, DB and container names, and identity/keys.
 
@@ -68,8 +68,11 @@ Tip: To run without external AI calls, set `DISABLE_OPENAI=1` in `src/local.sett
 Test multi-agent workflows locally:
 
 ```bash
+# Deploy to Azure first
+azd up
+
 # Start multi-agent code review workflow
-POST http://localhost:7071/api/orchestrators/multi-agent-review
+POST https://your-function-app.azurewebsites.net/api/orchestrators/multi-agent-review
 {
   "projectId": "default-project",
   "snippetId": "example.py",

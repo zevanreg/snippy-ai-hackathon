@@ -1,0 +1,341 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.37.4.10188",
+      "templateHash": "6763284482921337993"
+    }
+  },
+  "parameters": {
+    "environmentName": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "metadata": {
+        "description": "Name of the environment which is used to generate a short unique hash used in all resources."
+      }
+    },
+    "location": {
+      "type": "string",
+      "allowedValues": [
+        "eastus",
+        "eastus2",
+        "westus",
+        "westus2",
+        "westus3"
+      ],
+      "minLength": 1,
+      "metadata": {
+        "description": "Primary location for all resources"
+      }
+    }
+  },
+  "variables": {
+    "resourceToken": "[toLower(uniqueString(subscription().id, parameters('environmentName'), parameters('location')))]",
+    "tags": {
+      "azd-env-name": "[parameters('environmentName')]",
+      "project": "snippy-ai-hackathon",
+      "level": "level-1"
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Resources/resourceGroups",
+      "apiVersion": "2021-04-01",
+      "name": "[format('rg-snippy-hackathon-{0}', parameters('environmentName'))]",
+      "location": "[parameters('location')]",
+      "tags": "[variables('tags')]"
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "level1Resources",
+      "resourceGroup": "[format('rg-snippy-hackathon-{0}', parameters('environmentName'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "resourceToken": {
+            "value": "[variables('resourceToken')]"
+          },
+          "tags": {
+            "value": "[variables('tags')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.37.4.10188",
+              "templateHash": "13957205022138846676"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string"
+            },
+            "resourceToken": {
+              "type": "string"
+            },
+            "tags": {
+              "type": "object"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.DocumentDB/databaseAccounts",
+              "apiVersion": "2025-04-15",
+              "name": "[format('cosmos-{0}', parameters('resourceToken'))]",
+              "location": "[parameters('location')]",
+              "kind": "GlobalDocumentDB",
+              "properties": {
+                "databaseAccountOfferType": "Standard",
+                "locations": [
+                  {
+                    "locationName": "[parameters('location')]",
+                    "failoverPriority": 0,
+                    "isZoneRedundant": false
+                  }
+                ],
+                "capabilities": [
+                  {
+                    "name": "EnableServerless"
+                  }
+                ]
+              },
+              "tags": "[parameters('tags')]"
+            },
+            {
+              "type": "Microsoft.DocumentDB/databaseAccounts/sqlDatabases",
+              "apiVersion": "2025-04-15",
+              "name": "[format('{0}/{1}', format('cosmos-{0}', parameters('resourceToken')), 'dev-snippet-db')]",
+              "properties": {
+                "resource": {
+                  "id": "dev-snippet-db"
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.DocumentDB/databaseAccounts', format('cosmos-{0}', parameters('resourceToken')))]"
+              ]
+            },
+            {
+              "type": "Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers",
+              "apiVersion": "2025-04-15",
+              "name": "[format('{0}/{1}/{2}', format('cosmos-{0}', parameters('resourceToken')), 'dev-snippet-db', 'code-snippets')]",
+              "properties": {
+                "resource": {
+                  "id": "code-snippets",
+                  "partitionKey": {
+                    "paths": [
+                      "/name"
+                    ],
+                    "kind": "Hash"
+                  },
+                  "indexingPolicy": {
+                    "indexingMode": "consistent",
+                    "automatic": true,
+                    "includedPaths": [
+                      {
+                        "path": "/*"
+                      }
+                    ]
+                  }
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.DocumentDB/databaseAccounts/sqlDatabases', format('cosmos-{0}', parameters('resourceToken')), 'dev-snippet-db')]"
+              ]
+            },
+            {
+              "type": "Microsoft.Storage/storageAccounts",
+              "apiVersion": "2025-01-01",
+              "name": "[format('snippysto{0}', parameters('resourceToken'))]",
+              "location": "[parameters('location')]",
+              "kind": "StorageV2",
+              "sku": {
+                "name": "Standard_LRS"
+              },
+              "properties": {
+                "minimumTlsVersion": "TLS1_2",
+                "allowBlobPublicAccess": false,
+                "supportsHttpsTrafficOnly": true
+              },
+              "tags": "[parameters('tags')]"
+            },
+            {
+              "type": "Microsoft.Web/serverfarms",
+              "apiVersion": "2024-11-01",
+              "name": "[format('asp-{0}', parameters('resourceToken'))]",
+              "location": "[parameters('location')]",
+              "sku": {
+                "name": "Y1",
+                "tier": "Dynamic"
+              },
+              "properties": {
+                "reserved": true
+              },
+              "kind": "linux",
+              "tags": "[parameters('tags')]"
+            },
+            {
+              "type": "Microsoft.Web/sites",
+              "apiVersion": "2024-11-01",
+              "name": "[format('func-{0}', parameters('resourceToken'))]",
+              "location": "[parameters('location')]",
+              "kind": "functionapp,linux",
+              "identity": {
+                "type": "SystemAssigned"
+              },
+              "properties": {
+                "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', format('asp-{0}', parameters('resourceToken')))]",
+                "reserved": true,
+                "siteConfig": {
+                  "linuxFxVersion": "PYTHON|3.11",
+                  "appSettings": [
+                    {
+                      "name": "FUNCTIONS_WORKER_RUNTIME",
+                      "value": "python"
+                    },
+                    {
+                      "name": "FUNCTIONS_EXTENSION_VERSION",
+                      "value": "~4"
+                    },
+                    {
+                      "name": "AzureWebJobsStorage",
+                      "value": "[format('DefaultEndpointsProtocol=https;AccountName={0};AccountKey={1};EndpointSuffix=core.windows.net', format('snippysto{0}', parameters('resourceToken')), listKeys(resourceId('Microsoft.Storage/storageAccounts', format('snippysto{0}', parameters('resourceToken'))), '2025-01-01').keys[0].value)]"
+                    },
+                    {
+                      "name": "PYTHON_ENABLE_WORKER_EXTENSIONS",
+                      "value": "True"
+                    },
+                    {
+                      "name": "DISABLE_OPENAI",
+                      "value": "1"
+                    },
+                    {
+                      "name": "COSMOS_ENDPOINT",
+                      "value": "[reference(resourceId('Microsoft.DocumentDB/databaseAccounts', format('cosmos-{0}', parameters('resourceToken'))), '2025-04-15').documentEndpoint]"
+                    },
+                    {
+                      "name": "COSMOS_DATABASE_NAME",
+                      "value": "dev-snippet-db"
+                    },
+                    {
+                      "name": "COSMOS_CONTAINER_NAME",
+                      "value": "code-snippets"
+                    }
+                  ],
+                  "cors": {
+                    "allowedOrigins": [
+                      "*"
+                    ],
+                    "supportCredentials": false
+                  }
+                }
+              },
+              "tags": "[union(parameters('tags'), createObject('azd-service-name', 'api'))]",
+              "dependsOn": [
+                "[resourceId('Microsoft.Web/serverfarms', format('asp-{0}', parameters('resourceToken')))]",
+                "[resourceId('Microsoft.DocumentDB/databaseAccounts', format('cosmos-{0}', parameters('resourceToken')))]",
+                "[resourceId('Microsoft.Storage/storageAccounts', format('snippysto{0}', parameters('resourceToken')))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[format('Microsoft.DocumentDB/databaseAccounts/{0}', format('cosmos-{0}', parameters('resourceToken')))]",
+              "name": "[guid(resourceId('Microsoft.DocumentDB/databaseAccounts', format('cosmos-{0}', parameters('resourceToken'))), resourceId('Microsoft.Web/sites', format('func-{0}', parameters('resourceToken'))), 'CosmosDBContributor')]",
+              "properties": {
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'b24988ac-6180-42a0-ab88-20f7382dd24c')]",
+                "principalId": "[reference(resourceId('Microsoft.Web/sites', format('func-{0}', parameters('resourceToken'))), '2024-11-01', 'full').identity.principalId]",
+                "principalType": "ServicePrincipal"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.DocumentDB/databaseAccounts', format('cosmos-{0}', parameters('resourceToken')))]",
+                "[resourceId('Microsoft.Web/sites', format('func-{0}', parameters('resourceToken')))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "functionAppUrl": {
+              "type": "string",
+              "value": "[format('https://{0}', reference(resourceId('Microsoft.Web/sites', format('func-{0}', parameters('resourceToken'))), '2024-11-01').defaultHostName)]"
+            },
+            "cosmosEndpoint": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.DocumentDB/databaseAccounts', format('cosmos-{0}', parameters('resourceToken'))), '2025-04-15').documentEndpoint]"
+            },
+            "cosmosDatabaseName": {
+              "type": "string",
+              "value": "dev-snippet-db"
+            },
+            "cosmosContainerName": {
+              "type": "string",
+              "value": "code-snippets"
+            },
+            "storageAccountName": {
+              "type": "string",
+              "value": "[format('snippysto{0}', parameters('resourceToken'))]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[subscriptionResourceId('Microsoft.Resources/resourceGroups', format('rg-snippy-hackathon-{0}', parameters('environmentName')))]"
+      ]
+    }
+  ],
+  "outputs": {
+    "FUNCTION_APP_URL": {
+      "type": "string",
+      "metadata": {
+        "description": "Base URL of the deployed Azure Function App"
+      },
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('rg-snippy-hackathon-{0}', parameters('environmentName'))), 'Microsoft.Resources/deployments', 'level1Resources'), '2022-09-01').outputs.functionAppUrl.value]"
+    },
+    "COSMOS_ENDPOINT": {
+      "type": "string",
+      "metadata": {
+        "description": "Cosmos DB account endpoint URL for database operations"
+      },
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('rg-snippy-hackathon-{0}', parameters('environmentName'))), 'Microsoft.Resources/deployments', 'level1Resources'), '2022-09-01').outputs.cosmosEndpoint.value]"
+    },
+    "COSMOS_DATABASE_NAME": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the Cosmos DB database containing code snippets"
+      },
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('rg-snippy-hackathon-{0}', parameters('environmentName'))), 'Microsoft.Resources/deployments', 'level1Resources'), '2022-09-01').outputs.cosmosDatabaseName.value]"
+    },
+    "COSMOS_CONTAINER_NAME": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the Cosmos DB container storing code snippets"
+      },
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('rg-snippy-hackathon-{0}', parameters('environmentName'))), 'Microsoft.Resources/deployments', 'level1Resources'), '2022-09-01').outputs.cosmosContainerName.value]"
+    },
+    "HEALTH_ENDPOINT": {
+      "type": "string",
+      "metadata": {
+        "description": "Health check endpoint to verify deployment"
+      },
+      "value": "[format('{0}/api/health', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('rg-snippy-hackathon-{0}', parameters('environmentName'))), 'Microsoft.Resources/deployments', 'level1Resources'), '2022-09-01').outputs.functionAppUrl.value)]"
+    },
+    "SNIPPETS_ENDPOINT": {
+      "type": "string",
+      "metadata": {
+        "description": "Snippets API endpoint for CRUD operations"
+      },
+      "value": "[format('{0}/api/snippets', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('rg-snippy-hackathon-{0}', parameters('environmentName'))), 'Microsoft.Resources/deployments', 'level1Resources'), '2022-09-01').outputs.functionAppUrl.value)]"
+    }
+  }
+}
