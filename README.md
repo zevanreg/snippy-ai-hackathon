@@ -20,7 +20,7 @@ urlFragment: snippy
 -->
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Azure-Samples/snippy/main/.github/assets/snippy-logo-large.png" alt="Snippy logo" width="150"><br>
+  <img src=".github/assets/snippy-logo-large.png" alt="Snippy logo" width="150"><br>
   <b>Snippy · Intelligent Code-Snippet Service with MCP Tools</b>
 </p>
 
@@ -153,8 +153,10 @@ Prerequisites: [Docker Desktop](https://www.docker.com/products/docker-desktop)
 #### Quickstart
 
 ```bash
-# 1. Clone & init
-azd init --template Azure-Samples/snippy
+# 0. Optionally fork the repository to keep changes (adapt URL below if you decide to fork)
+
+# 1. clone repository
+git clone https://github.com/cihanduruer/snippy-ai-hackathon.git
 
 # 2. Sign in
 azd auth login
