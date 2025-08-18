@@ -43,7 +43,7 @@ The project ships with reproducible **azd** infrastructure, so `azd up` will st
 > * Restrict network access to Azure services via Private Endpoints or service‑tags
 > * Enable GitHub secret‑scanning and CI security tools
 
-[Features](#features) • [Architecture](#architecture-diagram) • [Getting Started](#getting-started) • [Guidance](#guidance)
+[Features](#features) • [Architecture](#architecture-diagram) • [Getting Started](#gettingstarted) • [Guidance](#guidance)
 
 ---
 
