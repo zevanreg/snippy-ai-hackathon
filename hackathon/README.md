@@ -1,65 +1,77 @@
-# Snippy AI Hackathon
+# 🎯 Snippy AI Hackathon
 
-A 6-level, hands-on path to build an enterprise-grade AI-powered knowledge assistant on Azure Functions (Python v2, blueprint model) with Durable Functions, Cosmos DB vector search, Azure OpenAI, and Zero Trust security.
+Build an enterprise-grade AI-powered knowledge assistant using Azure Functions, Cosmos DB vector search, Azure OpenAI, and Zero Trust security.
 
-## Format
-- Duration: 8 hours (core levels L1-L4: 6 hours, advanced levels L5-L6: 2 hours)
-- Teams: 5 people per team
+## 🚀 Quick Start
 
-## Levels
+**👉 [Read the complete Getting Started Guide](./GETTING-STARTED.md)**
 
-### Core Foundation (Required)
-- **Level 1** — Foundation API + Persistence
-- **Level 2** — Durable Orchestration: Fan-out Embeddings
-- **Level 3** — Vector Search + Q&A with Citations
-- **Level 4** — Event-driven Ingestion + Observability
+```bash
+# 1. Authenticate
+azd auth login
 
-### Advanced Enterprise Features (Stretch Goals)
-- **Level 5** — Agent-to-Agent Communication: Multi-Agent Orchestration
-- **Level 6** — Zero Trust Network: Private Endpoints + Egress Lockdown
+# 2. Deploy everything
+azd env new "your-team-name"
+azd up
 
-See level guides in this folder for detailed tasks, acceptance criteria, and hints.
+# 3. Start building!
+```
 
-## Rules
-- Python 3.11; Azure Functions Python v2 blueprint model
-- Durable orchestrators must be `def` (sync) and use `yield` + `context.task_all(...)`
-- Activity functions must be `async def` and return JSON-serialisable data
-- Use logging (INFO), type hints, and env vars from `local.settings.json`
-- No secrets in code, no prints. Prefer async Azure SDKs.
+## 📊 Challenge Structure
 
-## Getting started
+### 🎯 Format
+- **Duration**: 6 hours total
+- **Teams**: 5 people per team
+- **Tech Stack**: Azure Functions (Python 3.11), Cosmos DB, Azure OpenAI, Durable Functions
 
-### Local Development (All Levels)
-1. Copy `src/local.settings.example.json` to `src/local.settings.json` and fill secrets.
-2. Install deps: `pip install -r src/requirements.txt`.
-3. Start Functions locally with the VS Code task "func: host start".
-4. Run tests: `python -m pytest -q`.
+### 🏆 Levels Overview
 
-### Cloud Deployment with AZD (All Levels)
-1. Install [Azure Developer CLI](https://aka.ms/install-azd)
-2. Authenticate: `azd auth login`
-3. Deploy everything: `azd up`
-4. Test against your deployed Function App endpoints
+#### Core Foundation (Required - 6 hours)
+| Level | Focus | Key Deliverable |
+|-------|--------|-----------------|
+| **Level 1** | Foundation API + Persistence | CRUD operations, metadata storage |
+| **Level 2** | Durable Orchestration | Fan-out embeddings, parallel processing |
+| **Level 3** | Vector Search + Q&A | Semantic search, RAG with citations |
+| **Level 4** | Event-driven + Observability | Auto-ingestion, monitoring, resilience |
 
-**Benefits of Cloud Deployment:**
-- **Levels 1-4**: Real Azure services (Cosmos DB, Storage, OpenAI) instead of local emulation
-- **Levels 5-6**: Advanced features (multi-agent, Zero Trust) require cloud deployment
+#### Advanced Enterprise (Stretch Goals - 2 hours)
+| Level | Focus | Key Deliverable |
+|-------|--------|-----------------|
+| **Level 5** | Multi-Agent Orchestration | AI agents collaborating on complex tasks |
+| **Level 6** | Zero Trust Security | Private endpoints, network isolation |
 
-## Completion Strategy
-- **Teams aiming for completion**: Focus on L1-L4 first (6 hours), then attempt L5-L6 (2 hours)
-- **Advanced teams**: Can tackle L5-L6 in parallel with L3-L4 if infrastructure allows
-- **Minimum viable**: L1-L4 provides a fully functional AI knowledge assistant
-- **Deployment flexibility**: All levels support both local development and cloud deployment via AZD
+## 🎯 Winning Strategy
 
-## Key Technical Differentiators
+### ✅ Teams Aiming for Completion
+1. **Focus on Levels 1-4 first** (4 hours)
+2. **Attempt Levels 5-6** if time permits (2 hours)
+3. **Prioritize solid implementation** over feature breadth
 
-### Levels 1-4: Foundation Platform
-Build a solid, production-ready AI knowledge assistant with CRUD operations, vector search, and automated ingestion.
+### 🚀 Advanced Teams
+1. **Split effort** between core (Levels 1-4) and advanced (Levels 5-6)
+2. **Ensure integration** between all components
+3. **Focus on architecture** and scalability
 
-### Level 5: AI Agent Orchestration
-Transform your assistant into a multi-agent system where specialized AI agents collaborate on complex tasks like code review, documentation, and testing.
+### 🎖️ Minimum Viable Product
+Complete **Levels 1-4** for a fully functional AI knowledge assistant with:
+- Document ingestion and storage
+- AI-powered semantic search
+- Question answering with citations
+- Automated processing and monitoring
 
-### Level 6: Enterprise Security
-Implement zero trust security with private networking, managed identity, and compliance monitoring suitable for enterprise deployment.
+## 📋 Technical Requirements
 
-Happy hacking!
+- **Python 3.11** with Azure Functions v2 blueprint model
+- **Durable orchestrators**: `def` (sync) with `yield` + `context.task_all(...)`
+- **Activity functions**: `async def` returning JSON-serializable data
+- **Cloud-first deployment**: Use `azd up` for all development and testing
+- **No local development**: All testing against deployed Azure resources
+- **Security**: No secrets in code, use environment variables and Managed Identity
+
+## 🎉 Ready to Build?
+
+1. **[Follow the Getting Started Guide](./GETTING-STARTED.md)** for complete setup instructions
+2. **Open Level 1** (`level-1.md`) for your first challenge
+3. **Start coding** your AI knowledge assistant!
+
+**Good luck, and happy hacking!** 🚀

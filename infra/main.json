@@ -1,0 +1,736 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.37.4.10188",
+      "templateHash": "13519791235046084983"
+    }
+  },
+  "parameters": {
+    "environmentName": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "metadata": {
+        "description": "Name of the environment which is used to generate a short unique hash used in all resources."
+      }
+    },
+    "location": {
+      "type": "string",
+      "allowedValues": [
+        "eastus",
+        "eastus2",
+        "westus",
+        "westus2",
+        "westus3"
+      ],
+      "minLength": 1,
+      "metadata": {
+        "description": "Primary location for all resources"
+      }
+    },
+    "deploymentLevel": {
+      "type": "int",
+      "defaultValue": 6,
+      "allowedValues": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "metadata": {
+        "description": "Deployment level to execute (1-6)"
+      }
+    }
+  },
+  "variables": {
+    "resourceToken": "[toLower(uniqueString(subscription().id, parameters('environmentName'), parameters('location')))]",
+    "tags": {
+      "azd-env-name": "[parameters('environmentName')]",
+      "project": "snippy-ai-hackathon",
+      "level": "[format('level-{0}', parameters('deploymentLevel'))]"
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Resources/resourceGroups",
+      "apiVersion": "2021-04-01",
+      "name": "[format('rg-snippy-hackathon-{0}', parameters('environmentName'))]",
+      "location": "[parameters('location')]",
+      "tags": "[variables('tags')]"
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "resources",
+      "resourceGroup": "[format('rg-snippy-hackathon-{0}', parameters('environmentName'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "resourceToken": {
+            "value": "[variables('resourceToken')]"
+          },
+          "tags": {
+            "value": "[variables('tags')]"
+          },
+          "deploymentLevel": {
+            "value": "[parameters('deploymentLevel')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.37.4.10188",
+              "templateHash": "11643884322805369106"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string"
+            },
+            "resourceToken": {
+              "type": "string"
+            },
+            "tags": {
+              "type": "object"
+            },
+            "deploymentLevel": {
+              "type": "int"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.DocumentDB/databaseAccounts",
+              "apiVersion": "2025-04-15",
+              "name": "[format('cosmos-{0}', parameters('resourceToken'))]",
+              "location": "[parameters('location')]",
+              "kind": "GlobalDocumentDB",
+              "properties": {
+                "databaseAccountOfferType": "Standard",
+                "locations": [
+                  {
+                    "locationName": "[parameters('location')]",
+                    "failoverPriority": 0,
+                    "isZoneRedundant": false
+                  }
+                ],
+                "capabilities": [
+                  {
+                    "name": "EnableServerless"
+                  }
+                ]
+              },
+              "tags": "[parameters('tags')]"
+            },
+            {
+              "type": "Microsoft.DocumentDB/databaseAccounts/sqlDatabases",
+              "apiVersion": "2025-04-15",
+              "name": "[format('{0}/{1}', format('cosmos-{0}', parameters('resourceToken')), 'dev-snippet-db')]",
+              "properties": {
+                "resource": {
+                  "id": "dev-snippet-db"
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.DocumentDB/databaseAccounts', format('cosmos-{0}', parameters('resourceToken')))]"
+              ]
+            },
+            {
+              "type": "Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers",
+              "apiVersion": "2025-04-15",
+              "name": "[format('{0}/{1}/{2}', format('cosmos-{0}', parameters('resourceToken')), 'dev-snippet-db', 'code-snippets')]",
+              "properties": {
+                "resource": {
+                  "id": "code-snippets",
+                  "partitionKey": {
+                    "paths": [
+                      "/name"
+                    ],
+                    "kind": "Hash"
+                  },
+                  "indexingPolicy": "[if(greaterOrEquals(parameters('deploymentLevel'), 2), createObject('indexingMode', 'consistent', 'automatic', true(), 'includedPaths', createArray(createObject('path', '/*')), 'excludedPaths', createArray(createObject('path', '/embedding/*')), 'vectorIndexes', createArray(createObject('path', '/embedding', 'type', 'quantizedFlat'))), createObject('indexingMode', 'consistent', 'automatic', true(), 'includedPaths', createArray(createObject('path', '/*'))))]"
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.DocumentDB/databaseAccounts/sqlDatabases', format('cosmos-{0}', parameters('resourceToken')), 'dev-snippet-db')]"
+              ]
+            },
+            {
+              "condition": "[greaterOrEquals(parameters('deploymentLevel'), 2)]",
+              "type": "Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers",
+              "apiVersion": "2025-04-15",
+              "name": "[format('{0}/{1}/{2}', format('cosmos-{0}', parameters('resourceToken')), 'dev-snippet-db', 'code-snippets-vectors')]",
+              "properties": {
+                "resource": {
+                  "id": "code-snippets-vectors",
+                  "partitionKey": {
+                    "paths": [
+                      "/name"
+                    ],
+                    "kind": "Hash"
+                  },
+                  "indexingPolicy": {
+                    "indexingMode": "consistent",
+                    "automatic": true,
+                    "includedPaths": [
+                      {
+                        "path": "/*"
+                      }
+                    ],
+                    "excludedPaths": [
+                      {
+                        "path": "/embedding/*"
+                      }
+                    ],
+                    "vectorIndexes": [
+                      {
+                        "path": "/embedding",
+                        "type": "quantizedFlat"
+                      }
+                    ]
+                  }
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.DocumentDB/databaseAccounts/sqlDatabases', format('cosmos-{0}', parameters('resourceToken')), 'dev-snippet-db')]"
+              ]
+            },
+            {
+              "type": "Microsoft.Storage/storageAccounts",
+              "apiVersion": "2025-01-01",
+              "name": "[format('snippysto{0}', parameters('resourceToken'))]",
+              "location": "[parameters('location')]",
+              "kind": "StorageV2",
+              "sku": {
+                "name": "Standard_LRS"
+              },
+              "properties": {
+                "minimumTlsVersion": "TLS1_2",
+                "allowBlobPublicAccess": false,
+                "supportsHttpsTrafficOnly": true
+              },
+              "tags": "[parameters('tags')]"
+            },
+            {
+              "type": "Microsoft.Storage/storageAccounts/blobServices",
+              "apiVersion": "2025-01-01",
+              "name": "[format('{0}/{1}', format('snippysto{0}', parameters('resourceToken')), 'default')]",
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', format('snippysto{0}', parameters('resourceToken')))]"
+              ]
+            },
+            {
+              "condition": "[greaterOrEquals(parameters('deploymentLevel'), 4)]",
+              "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+              "apiVersion": "2025-01-01",
+              "name": "[format('{0}/{1}/{2}', format('snippysto{0}', parameters('resourceToken')), 'default', 'snippet-inputs')]",
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', format('snippysto{0}', parameters('resourceToken')), 'default')]"
+              ]
+            },
+            {
+              "condition": "[greaterOrEquals(parameters('deploymentLevel'), 4)]",
+              "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+              "apiVersion": "2025-01-01",
+              "name": "[format('{0}/{1}/{2}', format('snippysto{0}', parameters('resourceToken')), 'default', 'snippet-backups')]",
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', format('snippysto{0}', parameters('resourceToken')), 'default')]"
+              ]
+            },
+            {
+              "type": "Microsoft.Web/serverfarms",
+              "apiVersion": "2024-11-01",
+              "name": "[format('asp-{0}', parameters('resourceToken'))]",
+              "location": "[parameters('location')]",
+              "sku": {
+                "name": "Y1",
+                "tier": "Dynamic"
+              },
+              "properties": {
+                "reserved": true
+              },
+              "kind": "linux",
+              "tags": "[parameters('tags')]"
+            },
+            {
+              "condition": "[greaterOrEquals(parameters('deploymentLevel'), 2)]",
+              "type": "Microsoft.OperationalInsights/workspaces",
+              "apiVersion": "2023-09-01",
+              "name": "[format('log-{0}', parameters('resourceToken'))]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "sku": {
+                  "name": "PerGB2018"
+                },
+                "retentionInDays": 30
+              },
+              "tags": "[parameters('tags')]"
+            },
+            {
+              "condition": "[greaterOrEquals(parameters('deploymentLevel'), 2)]",
+              "type": "Microsoft.Insights/components",
+              "apiVersion": "2020-02-02",
+              "name": "[format('appins-{0}', parameters('resourceToken'))]",
+              "location": "[parameters('location')]",
+              "kind": "web",
+              "properties": {
+                "Application_Type": "web",
+                "WorkspaceResourceId": "[if(greaterOrEquals(parameters('deploymentLevel'), 2), resourceId('Microsoft.OperationalInsights/workspaces', format('log-{0}', parameters('resourceToken'))), null())]"
+              },
+              "tags": "[parameters('tags')]",
+              "dependsOn": [
+                "[resourceId('Microsoft.OperationalInsights/workspaces', format('log-{0}', parameters('resourceToken')))]"
+              ]
+            },
+            {
+              "condition": "[greaterOrEquals(parameters('deploymentLevel'), 2)]",
+              "type": "Microsoft.CognitiveServices/accounts",
+              "apiVersion": "2025-06-01",
+              "name": "[format('ai-foundry-snippy-{0}', parameters('resourceToken'))]",
+              "location": "[parameters('location')]",
+              "identity": {
+                "type": "SystemAssigned"
+              },
+              "sku": {
+                "name": "S0"
+              },
+              "kind": "AIServices",
+              "properties": {
+                "publicNetworkAccess": "Enabled",
+                "allowProjectManagement": true
+              },
+              "tags": "[parameters('tags')]"
+            },
+            {
+              "condition": "[greaterOrEquals(parameters('deploymentLevel'), 2)]",
+              "type": "Microsoft.CognitiveServices/accounts/deployments",
+              "apiVersion": "2025-06-01",
+              "name": "[format('{0}/{1}', format('ai-foundry-snippy-{0}', parameters('resourceToken')), 'text-embedding-3-small')]",
+              "properties": {
+                "model": {
+                  "format": "OpenAI",
+                  "name": "text-embedding-3-small",
+                  "version": "1"
+                }
+              },
+              "sku": {
+                "name": "Standard",
+                "capacity": 120
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.CognitiveServices/accounts', format('ai-foundry-snippy-{0}', parameters('resourceToken')))]"
+              ]
+            },
+            {
+              "condition": "[greaterOrEquals(parameters('deploymentLevel'), 3)]",
+              "type": "Microsoft.CognitiveServices/accounts/deployments",
+              "apiVersion": "2025-06-01",
+              "name": "[format('{0}/{1}', format('ai-foundry-snippy-{0}', parameters('resourceToken')), 'gpt-4o')]",
+              "properties": {
+                "model": {
+                  "format": "OpenAI",
+                  "name": "gpt-4o",
+                  "version": "2024-08-06"
+                }
+              },
+              "sku": {
+                "name": "Standard",
+                "capacity": 10
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.CognitiveServices/accounts', format('ai-foundry-snippy-{0}', parameters('resourceToken')))]",
+                "[resourceId('Microsoft.CognitiveServices/accounts/deployments', format('ai-foundry-snippy-{0}', parameters('resourceToken')), 'text-embedding-3-small')]"
+              ]
+            },
+            {
+              "condition": "[greaterOrEquals(parameters('deploymentLevel'), 6)]",
+              "type": "Microsoft.KeyVault/vaults",
+              "apiVersion": "2023-07-01",
+              "name": "[format('kv-snippy-{0}', parameters('resourceToken'))]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "sku": {
+                  "family": "A",
+                  "name": "standard"
+                },
+                "tenantId": "[tenant().tenantId]",
+                "enabledForDeployment": false,
+                "enabledForTemplateDeployment": false,
+                "enabledForDiskEncryption": false,
+                "enableRbacAuthorization": true,
+                "enableSoftDelete": true,
+                "softDeleteRetentionInDays": 7,
+                "accessPolicies": []
+              },
+              "tags": "[parameters('tags')]"
+            },
+            {
+              "type": "Microsoft.Web/sites",
+              "apiVersion": "2024-11-01",
+              "name": "[format('func-{0}', parameters('resourceToken'))]",
+              "location": "[parameters('location')]",
+              "kind": "functionapp,linux",
+              "identity": {
+                "type": "SystemAssigned"
+              },
+              "properties": {
+                "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', format('asp-{0}', parameters('resourceToken')))]",
+                "reserved": true,
+                "siteConfig": {
+                  "linuxFxVersion": "PYTHON|3.11",
+                  "appSettings": [
+                    {
+                      "name": "FUNCTIONS_WORKER_RUNTIME",
+                      "value": "python"
+                    },
+                    {
+                      "name": "FUNCTIONS_EXTENSION_VERSION",
+                      "value": "~4"
+                    },
+                    {
+                      "name": "AzureWebJobsStorage",
+                      "value": "[format('DefaultEndpointsProtocol=https;AccountName={0};AccountKey={1};EndpointSuffix=core.windows.net', format('snippysto{0}', parameters('resourceToken')), listKeys(resourceId('Microsoft.Storage/storageAccounts', format('snippysto{0}', parameters('resourceToken'))), '2025-01-01').keys[0].value)]"
+                    },
+                    {
+                      "name": "PYTHON_ENABLE_WORKER_EXTENSIONS",
+                      "value": "True"
+                    },
+                    {
+                      "name": "COSMOS_ENDPOINT",
+                      "value": "[reference(resourceId('Microsoft.DocumentDB/databaseAccounts', format('cosmos-{0}', parameters('resourceToken'))), '2025-04-15').documentEndpoint]"
+                    },
+                    {
+                      "name": "COSMOS_DATABASE_NAME",
+                      "value": "dev-snippet-db"
+                    },
+                    {
+                      "name": "COSMOS_CONTAINER_NAME",
+                      "value": "code-snippets"
+                    },
+                    {
+                      "name": "DISABLE_OPENAI",
+                      "value": "[if(greaterOrEquals(parameters('deploymentLevel'), 2), '0', '1')]"
+                    }
+                  ],
+                  "cors": {
+                    "allowedOrigins": [
+                      "*"
+                    ],
+                    "supportCredentials": false
+                  }
+                }
+              },
+              "tags": "[union(parameters('tags'), createObject('azd-service-name', 'api'))]",
+              "dependsOn": [
+                "[resourceId('Microsoft.Web/serverfarms', format('asp-{0}', parameters('resourceToken')))]",
+                "[resourceId('Microsoft.DocumentDB/databaseAccounts', format('cosmos-{0}', parameters('resourceToken')))]",
+                "[resourceId('Microsoft.Storage/storageAccounts', format('snippysto{0}', parameters('resourceToken')))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[format('Microsoft.DocumentDB/databaseAccounts/{0}', format('cosmos-{0}', parameters('resourceToken')))]",
+              "name": "[guid(resourceId('Microsoft.DocumentDB/databaseAccounts', format('cosmos-{0}', parameters('resourceToken'))), resourceId('Microsoft.Web/sites', format('func-{0}', parameters('resourceToken'))), 'CosmosDBContributor')]",
+              "properties": {
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'b24988ac-6180-42a0-ab88-20f7382dd24c')]",
+                "principalId": "[reference(resourceId('Microsoft.Web/sites', format('func-{0}', parameters('resourceToken'))), '2024-11-01', 'full').identity.principalId]",
+                "principalType": "ServicePrincipal"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.DocumentDB/databaseAccounts', format('cosmos-{0}', parameters('resourceToken')))]",
+                "[resourceId('Microsoft.Web/sites', format('func-{0}', parameters('resourceToken')))]"
+              ]
+            },
+            {
+              "condition": "[greaterOrEquals(parameters('deploymentLevel'), 2)]",
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[format('Microsoft.CognitiveServices/accounts/{0}', format('ai-foundry-snippy-{0}', parameters('resourceToken')))]",
+              "name": "[guid(resourceId('Microsoft.CognitiveServices/accounts', format('ai-foundry-snippy-{0}', parameters('resourceToken'))), resourceId('Microsoft.Web/sites', format('func-{0}', parameters('resourceToken'))), 'CognitiveServicesUser')]",
+              "properties": {
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'a97b65f3-24c7-4388-baec-2e87135dc908')]",
+                "principalId": "[reference(resourceId('Microsoft.Web/sites', format('func-{0}', parameters('resourceToken'))), '2024-11-01', 'full').identity.principalId]",
+                "principalType": "ServicePrincipal"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.CognitiveServices/accounts', format('ai-foundry-snippy-{0}', parameters('resourceToken')))]",
+                "[resourceId('Microsoft.Web/sites', format('func-{0}', parameters('resourceToken')))]"
+              ]
+            },
+            {
+              "condition": "[greaterOrEquals(parameters('deploymentLevel'), 4)]",
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[format('Microsoft.Storage/storageAccounts/{0}', format('snippysto{0}', parameters('resourceToken')))]",
+              "name": "[guid(resourceId('Microsoft.Storage/storageAccounts', format('snippysto{0}', parameters('resourceToken'))), resourceId('Microsoft.Web/sites', format('func-{0}', parameters('resourceToken'))), 'StorageBlobDataContributor')]",
+              "properties": {
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'ba92f5b4-2d11-453d-a403-e96b0029c9fe')]",
+                "principalId": "[reference(resourceId('Microsoft.Web/sites', format('func-{0}', parameters('resourceToken'))), '2024-11-01', 'full').identity.principalId]",
+                "principalType": "ServicePrincipal"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Web/sites', format('func-{0}', parameters('resourceToken')))]",
+                "[resourceId('Microsoft.Storage/storageAccounts', format('snippysto{0}', parameters('resourceToken')))]"
+              ]
+            },
+            {
+              "condition": "[greaterOrEquals(parameters('deploymentLevel'), 6)]",
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[format('Microsoft.KeyVault/vaults/{0}', format('kv-snippy-{0}', parameters('resourceToken')))]",
+              "name": "[guid(resourceId('Microsoft.KeyVault/vaults', format('kv-snippy-{0}', parameters('resourceToken'))), resourceId('Microsoft.Web/sites', format('func-{0}', parameters('resourceToken'))), 'KeyVaultSecretsUser')]",
+              "properties": {
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4633458b-17de-408a-b874-0445c86b69e6')]",
+                "principalId": "[reference(resourceId('Microsoft.Web/sites', format('func-{0}', parameters('resourceToken'))), '2024-11-01', 'full').identity.principalId]",
+                "principalType": "ServicePrincipal"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Web/sites', format('func-{0}', parameters('resourceToken')))]",
+                "[resourceId('Microsoft.KeyVault/vaults', format('kv-snippy-{0}', parameters('resourceToken')))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "functionAppUrl": {
+              "type": "string",
+              "value": "[format('https://{0}', reference(resourceId('Microsoft.Web/sites', format('func-{0}', parameters('resourceToken'))), '2024-11-01').defaultHostName)]"
+            },
+            "cosmosEndpoint": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.DocumentDB/databaseAccounts', format('cosmos-{0}', parameters('resourceToken'))), '2025-04-15').documentEndpoint]"
+            },
+            "cosmosDatabaseName": {
+              "type": "string",
+              "value": "dev-snippet-db"
+            },
+            "cosmosContainerName": {
+              "type": "string",
+              "value": "code-snippets"
+            },
+            "storageAccountName": {
+              "type": "string",
+              "value": "[format('snippysto{0}', parameters('resourceToken'))]"
+            },
+            "aiProjectConnectionString": {
+              "type": "string",
+              "value": "[if(greaterOrEquals(parameters('deploymentLevel'), 2), format('https://ai-foundry-snippy-{0}.openai.azure.com/', parameters('resourceToken')), '')]"
+            },
+            "aiFoundryProjectName": {
+              "type": "string",
+              "value": "[if(greaterOrEquals(parameters('deploymentLevel'), 2), format('ai-foundry-snippy-{0}', parameters('resourceToken')), '')]"
+            },
+            "aiFoundryOpenAiEndpoint": {
+              "type": "string",
+              "value": "[if(greaterOrEquals(parameters('deploymentLevel'), 2), format('https://ai-foundry-snippy-{0}.openai.azure.com/', parameters('resourceToken')), '')]"
+            },
+            "embeddingModelDeploymentName": {
+              "type": "string",
+              "value": "[if(greaterOrEquals(parameters('deploymentLevel'), 2), 'text-embedding-3-small', '')]"
+            },
+            "appInsightsConnectionString": {
+              "type": "string",
+              "value": "[if(greaterOrEquals(parameters('deploymentLevel'), 2), 'InstrumentationKey=placeholder;IngestionEndpoint=https://placeholder.applicationinsights.azure.com/', '')]"
+            },
+            "chatModelDeploymentName": {
+              "type": "string",
+              "value": "[if(greaterOrEquals(parameters('deploymentLevel'), 3), 'gpt-4o', '')]"
+            },
+            "chatModelDeploymentType": {
+              "type": "string",
+              "value": "[if(greaterOrEquals(parameters('deploymentLevel'), 3), 'gpt-4o', '')]"
+            },
+            "storageBlobContainerSnippetInputs": {
+              "type": "string",
+              "value": "[if(greaterOrEquals(parameters('deploymentLevel'), 4), 'snippet-inputs', '')]"
+            },
+            "storageBlobContainerSnippetBackups": {
+              "type": "string",
+              "value": "[if(greaterOrEquals(parameters('deploymentLevel'), 4), 'snippet-backups', '')]"
+            },
+            "keyVaultUrl": {
+              "type": "string",
+              "value": "[if(greaterOrEquals(parameters('deploymentLevel'), 6), format('https://kv-snippy-{0}.vault.azure.net/', parameters('resourceToken')), '')]"
+            },
+            "managedIdentityClientId": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Web/sites', format('func-{0}', parameters('resourceToken'))), '2024-11-01', 'full').identity.principalId]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[subscriptionResourceId('Microsoft.Resources/resourceGroups', format('rg-snippy-hackathon-{0}', parameters('environmentName')))]"
+      ]
+    }
+  ],
+  "outputs": {
+    "FUNCTION_APP_URL": {
+      "type": "string",
+      "metadata": {
+        "description": "Base URL of the deployed Azure Function App"
+      },
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('rg-snippy-hackathon-{0}', parameters('environmentName'))), 'Microsoft.Resources/deployments', 'resources'), '2022-09-01').outputs.functionAppUrl.value]"
+    },
+    "COSMOS_ENDPOINT": {
+      "type": "string",
+      "metadata": {
+        "description": "Cosmos DB account endpoint URL for database operations"
+      },
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('rg-snippy-hackathon-{0}', parameters('environmentName'))), 'Microsoft.Resources/deployments', 'resources'), '2022-09-01').outputs.cosmosEndpoint.value]"
+    },
+    "COSMOS_DATABASE_NAME": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the Cosmos DB database containing code snippets"
+      },
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('rg-snippy-hackathon-{0}', parameters('environmentName'))), 'Microsoft.Resources/deployments', 'resources'), '2022-09-01').outputs.cosmosDatabaseName.value]"
+    },
+    "COSMOS_CONTAINER_NAME": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the Cosmos DB container storing code snippets with vector embeddings"
+      },
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('rg-snippy-hackathon-{0}', parameters('environmentName'))), 'Microsoft.Resources/deployments', 'resources'), '2022-09-01').outputs.cosmosContainerName.value]"
+    },
+    "AI_PROJECT_CONNECTION_STRING": {
+      "type": "string",
+      "metadata": {
+        "description": "Connection string for the AI Foundry project API endpoints"
+      },
+      "value": "[if(greaterOrEquals(parameters('deploymentLevel'), 2), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('rg-snippy-hackathon-{0}', parameters('environmentName'))), 'Microsoft.Resources/deployments', 'resources'), '2022-09-01').outputs.aiProjectConnectionString.value, '')]"
+    },
+    "AI_FOUNDRY_PROJECT_NAME": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the AI Foundry project for organizing AI resources"
+      },
+      "value": "[if(greaterOrEquals(parameters('deploymentLevel'), 2), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('rg-snippy-hackathon-{0}', parameters('environmentName'))), 'Microsoft.Resources/deployments', 'resources'), '2022-09-01').outputs.aiFoundryProjectName.value, '')]"
+    },
+    "AI_FOUNDRY_OPENAI_ENDPOINT": {
+      "type": "string",
+      "metadata": {
+        "description": "OpenAI-compatible endpoint URL for the AI Foundry service"
+      },
+      "value": "[if(greaterOrEquals(parameters('deploymentLevel'), 2), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('rg-snippy-hackathon-{0}', parameters('environmentName'))), 'Microsoft.Resources/deployments', 'resources'), '2022-09-01').outputs.aiFoundryOpenAiEndpoint.value, '')]"
+    },
+    "EMBEDDING_MODEL_DEPLOYMENT_NAME": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the deployed embedding model for text vectorization"
+      },
+      "value": "[if(greaterOrEquals(parameters('deploymentLevel'), 2), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('rg-snippy-hackathon-{0}', parameters('environmentName'))), 'Microsoft.Resources/deployments', 'resources'), '2022-09-01').outputs.embeddingModelDeploymentName.value, '')]"
+    },
+    "CHAT_MODEL_DEPLOYMENT_NAME": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the deployed chat model for conversational AI"
+      },
+      "value": "[if(greaterOrEquals(parameters('deploymentLevel'), 3), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('rg-snippy-hackathon-{0}', parameters('environmentName'))), 'Microsoft.Resources/deployments', 'resources'), '2022-09-01').outputs.chatModelDeploymentName.value, '')]"
+    },
+    "CHAT_MODEL_DEPLOYMENT_TYPE": {
+      "type": "string",
+      "metadata": {
+        "description": "Type/name of the chat model (e.g., gpt-4o)"
+      },
+      "value": "[if(greaterOrEquals(parameters('deploymentLevel'), 3), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('rg-snippy-hackathon-{0}', parameters('environmentName'))), 'Microsoft.Resources/deployments', 'resources'), '2022-09-01').outputs.chatModelDeploymentType.value, '')]"
+    },
+    "STORAGE_ACCOUNT_NAME": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the Azure Storage Account for blob storage operations"
+      },
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('rg-snippy-hackathon-{0}', parameters('environmentName'))), 'Microsoft.Resources/deployments', 'resources'), '2022-09-01').outputs.storageAccountName.value]"
+    },
+    "STORAGE_CONTAINER_SNIPPETINPUT": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the blob container for snippet input files"
+      },
+      "value": "[if(greaterOrEquals(parameters('deploymentLevel'), 4), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('rg-snippy-hackathon-{0}', parameters('environmentName'))), 'Microsoft.Resources/deployments', 'resources'), '2022-09-01').outputs.storageBlobContainerSnippetInputs.value, '')]"
+    },
+    "STORAGE_CONTAINER_SNIPPETBACKUPS": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the blob container for snippet backup files"
+      },
+      "value": "[if(greaterOrEquals(parameters('deploymentLevel'), 4), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('rg-snippy-hackathon-{0}', parameters('environmentName'))), 'Microsoft.Resources/deployments', 'resources'), '2022-09-01').outputs.storageBlobContainerSnippetBackups.value, '')]"
+    },
+    "APP_INSIGHTS_CONNECTION_STRING": {
+      "type": "string",
+      "metadata": {
+        "description": "Connection string for Application Insights telemetry and monitoring"
+      },
+      "value": "[if(greaterOrEquals(parameters('deploymentLevel'), 2), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('rg-snippy-hackathon-{0}', parameters('environmentName'))), 'Microsoft.Resources/deployments', 'resources'), '2022-09-01').outputs.appInsightsConnectionString.value, '')]"
+    },
+    "KEY_VAULT_URL": {
+      "type": "string",
+      "metadata": {
+        "description": "Key Vault URL for secure credential storage"
+      },
+      "value": "[if(greaterOrEquals(parameters('deploymentLevel'), 6), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('rg-snippy-hackathon-{0}', parameters('environmentName'))), 'Microsoft.Resources/deployments', 'resources'), '2022-09-01').outputs.keyVaultUrl.value, '')]"
+    },
+    "MANAGED_IDENTITY_CLIENT_ID": {
+      "type": "string",
+      "metadata": {
+        "description": "Managed identity client ID for secure Azure service authentication"
+      },
+      "value": "[if(greaterOrEquals(parameters('deploymentLevel'), 6), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('rg-snippy-hackathon-{0}', parameters('environmentName'))), 'Microsoft.Resources/deployments', 'resources'), '2022-09-01').outputs.managedIdentityClientId.value, '')]"
+    },
+    "HEALTH_ENDPOINT": {
+      "type": "string",
+      "metadata": {
+        "description": "Health check endpoint to verify deployment"
+      },
+      "value": "[format('{0}/api/health', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('rg-snippy-hackathon-{0}', parameters('environmentName'))), 'Microsoft.Resources/deployments', 'resources'), '2022-09-01').outputs.functionAppUrl.value)]"
+    },
+    "SNIPPETS_ENDPOINT": {
+      "type": "string",
+      "metadata": {
+        "description": "Snippets API endpoint for CRUD operations"
+      },
+      "value": "[format('{0}/api/snippets', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('rg-snippy-hackathon-{0}', parameters('environmentName'))), 'Microsoft.Resources/deployments', 'resources'), '2022-09-01').outputs.functionAppUrl.value)]"
+    },
+    "EMBEDDINGS_ENDPOINT": {
+      "type": "string",
+      "metadata": {
+        "description": "Embeddings orchestrator endpoint for vector generation"
+      },
+      "value": "[format('{0}/api/orchestrators/embeddings', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('rg-snippy-hackathon-{0}', parameters('environmentName'))), 'Microsoft.Resources/deployments', 'resources'), '2022-09-01').outputs.functionAppUrl.value)]"
+    },
+    "QUERY_ENDPOINT": {
+      "type": "string",
+      "metadata": {
+        "description": "Query endpoint for vector search and chat completions"
+      },
+      "value": "[format('{0}/api/query', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('rg-snippy-hackathon-{0}', parameters('environmentName'))), 'Microsoft.Resources/deployments', 'resources'), '2022-09-01').outputs.functionAppUrl.value)]"
+    },
+    "INGESTION_ENDPOINT": {
+      "type": "string",
+      "metadata": {
+        "description": "Ingestion endpoint for blob-triggered snippet processing"
+      },
+      "value": "[format('{0}/api/orchestrators/ingestion', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('rg-snippy-hackathon-{0}', parameters('environmentName'))), 'Microsoft.Resources/deployments', 'resources'), '2022-09-01').outputs.functionAppUrl.value)]"
+    },
+    "MULTI_AGENT_ENDPOINT": {
+      "type": "string",
+      "metadata": {
+        "description": "Multi-agent orchestrator endpoint for complex AI workflows"
+      },
+      "value": "[format('{0}/api/orchestrators/multi-agent', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('rg-snippy-hackathon-{0}', parameters('environmentName'))), 'Microsoft.Resources/deployments', 'resources'), '2022-09-01').outputs.functionAppUrl.value)]"
+    }
+  }
+}
