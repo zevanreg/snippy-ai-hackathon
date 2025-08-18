@@ -1,5 +1,19 @@
 # Azure Developer CLI (azd) Environment Setup
 
+## Table of Contents
+
+- [What azd Does in the Snippy AI Hackathon Project](#what-azd-does-in-the-snippy-ai-hackathon-project)
+- [Quick Start](#quick-start)
+- [What Gets Deployed (Infrastructure Phase)](#what-gets-deployed-infrastructure-phase)
+- [Configuration Generation (Local Settings Phase)](#configuration-generation-local-settings-phase)
+- [Alternative azd Commands](#alternative-azd-commands)
+- [Local Development Setup (Application Phase)](#local-development-setup-application-phase)
+- [Environment Management](#environment-management)
+- [Cleanup and Teardown](#cleanup-and-teardown)
+- [Troubleshooting](#troubleshooting)
+- [Next Steps](#next-steps)
+- [Additional Resources](#additional-resources)
+
 ## What azd Does in the Snippy AI Hackathon Project
 
 Azure Developer CLI (azd) streamlines the deployment of the complete Snippy AI infrastructure and application. In this project, azd orchestrates a three-step workflow: **Infrastructure → Local Settings → Application**.
@@ -15,17 +29,21 @@ Azure Developer CLI (azd) streamlines the deployment of the complete Snippy AI i
 ### Login
 
 ```bash
-# login with Azure CLI so we can authenticate with your user
+# login with Azure CLI
 az login
+# login with Azure Developer CLI
+azd auth login
 ```
 
 ### Deploy Everything
 ```bash
 # Login and deploy complete environment
-azd auth login
 azd env new "NAME OF YOUR ENVIRONMENT"
 azd up
+## we recommend eastus2 as a region with enough availability
 ```
+
+**now it's time for your favorite hot beverage until everything is deployed - this might take some 20 minutes. below are some descriptions of what is going to be deployed. You can use the time to familiarize with the existing code + architecture** 
 
 This single command will:
 - Create all Azure resources by looking for a `main.bicep` file in the `infra`folder
@@ -50,7 +68,7 @@ The `azd up` command deploys this complete AI infrastructure:
 
 ## Configuration Generation (Local Settings Phase)
 
-After deployment, the `generate-settings` scripts extract outputs from Azure and create your local development configuration:
+After deployment, the `generate-settings` scripts extract outputs from the bicep deployment and create your local development configuration:
 
 ```json
 // Generated src/local.settings.json structure
@@ -86,44 +104,6 @@ azd provision
 
 # Deploy only application code
 azd deploy
-azd env get-values
-```
-
-## Deployed Resources
-
-The `azd up` command creates the following Azure resources:
-
-### Core Infrastructure:
-- **Resource Group**: `snippy-ai-hackathon`
-- **Storage Account**: For blob storage and Function App content
-- **Cosmos DB**: Serverless account with vector search capabilities
-- **Function App**: Python 3.11 runtime with managed identity
-- **App Service Plan**: Consumption tier for serverless functions
-
-### AI Services:
-- **AI Foundry**: Cognitive Services account for AI operations
-- **AI Project**: Project-based AI resource management
-- **Model Deployments**:
-  - GPT-4o for chat completions
-  - text-embedding-3-small for embeddings
-
-### Monitoring:
-- **Log Analytics Workspace**: Centralized logging
-- **Application Insights**: Application performance monitoring
-
-```
-
-### Environment Management
-```bash
-# View deployment status
-azd env list
-azd env show
-
-# Get deployed resource values  
-azd env get-values
-
-# Tear down when finished
-azd down
 ```
 
 ## Local Development Setup (Application Phase)
@@ -132,6 +112,7 @@ Once infrastructure is deployed and local settings generated, you can develop lo
 
 ### Starting the Function App:
 ```bash
+# cd into the src folder
 cd src
 
 # Activate virtual environment (if needed)
@@ -153,13 +134,6 @@ curl http://localhost:7071/api/health
 # Logs appear in terminal and Application Insights
 ```
 
-### What You Get Locally:
-- **AI Services**: Connected to deployed AI Foundry models
-- **Vector Database**: Connected to Cosmos DB with vector search
-- **Storage**: Connected to Azure Blob Storage
-- **Monitoring**: Logs sent to Application Insights
-- **Authentication**: Uses your Azure CLI credentials for local development
-
 ## Environment Management
 
 ### Getting Resource Information
@@ -178,29 +152,6 @@ azd env get-values | grep COSMOS_ENDPOINT
 azd down
 ```
 
-## Troubleshooting Common Issues
-
-### Deployment Failures
-```bash
-# Check deployment logs
-azd provision --debug
-
-# View Azure portal for resource status
-# Check Application Insights for runtime errors
-```
-
-### Local Development Issues
-```bash
-# Regenerate local settings if needed
-./scripts/generate-settings.sh
-
-# Verify Azure CLI authentication
-az account show
-azd auth login
-
-# Check function app logs
-func start --verbose
-```
 ## Cleanup and Teardown
 
 ### Remove All Resources
@@ -219,7 +170,7 @@ This command:
 # Remove only the application (keep infrastructure)
 azd deploy --tear-down
 
-# Remove environment configuration
+# Remove environment configuration (does not delete infrastructure)
 azd env delete <environment-name>
 ```
 
