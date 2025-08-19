@@ -99,7 +99,7 @@ tool_properties_code_style_json = json.dumps([prop.to_dict() for prop in tool_pr
 
 # HTTP endpoint for saving snippets
 # This is accessible via standard HTTP POST requests
-@bp.route(route="snippets", methods=["POST"], auth_level=func.AuthLevel.ADMIN)
+@bp.route(route="snippets", methods=["POST"], auth_level=func.AuthLevel.FUNCTION)
 @bp.embeddings_input(arg_name="embeddings", input="{code}", input_type="rawText", embeddings_model="%EMBEDDING_MODEL_DEPLOYMENT_NAME%")
 async def http_save_snippet(req: func.HttpRequest, embeddings: str) -> func.HttpResponse:
 
