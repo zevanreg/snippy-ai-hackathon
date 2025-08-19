@@ -196,6 +196,7 @@ with patch('data.cosmos_ops.upsert_document') as mock_upsert:
 ## 💡 Pro Tips from Your Mentor
 
 ### 🔍 Debugging Tips:
+- **Test locally**: azd will generate a `local.settings.json`file so you can cd into the src folder and run `func host start` to run the functions locally.
 - **Check function logs**: Use Azure Portal or Azure CLI to view logs from deployed functions
 - **Environment variables**: Ensure all required settings are configured in Azure
 - **JSON handling**: Always validate JSON input before processing

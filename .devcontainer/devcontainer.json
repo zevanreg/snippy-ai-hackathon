@@ -15,7 +15,8 @@
         "ms-python.debugpy",
         "ms-azuretools.vscode-azurefunctions",
         "ms-vscode.powershell",
-        "bierner.markdown-mermaid"
+        "bierner.markdown-mermaid",
+        "humao.rest-client"
       ]
     }
   },

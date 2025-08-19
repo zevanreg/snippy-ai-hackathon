@@ -51,10 +51,8 @@ cat > src/local.settings.json << EOF
   }
 }
 EOF
-
 echo "local.settings.json generated successfully in src directory!"
-echo "Using Cosmos DB: ${COSMOS_ENDPOINT}"
-echo "Using AI Foundry: ${AI_FOUNDRY_OPENAI_ENDPOINT}"
+
 # Helper to mask a value keeping first 3 characters and masking the rest with '*'
 mask_keep3() {
   local val="$1"
@@ -70,6 +68,15 @@ mask_keep3() {
   # Always mask with exactly five '*' characters after the first 3 chars
   echo "${prefix}*****"
 }
+
+
+# Export the Azure Function key to AZURE_FUNCTION_KEY
+echo "Exporting environment variables for later use..."
+AZURE_FUNCTION_KEY=$(az functionapp keys list --name "$(azd env get-values | grep FUNCTION_APP_NAME | cut -d'"' -f2)" --resource-group "$(azd env get-values | grep AZURE_RESOURCE_GROUP | cut -d'"' -f2)" --query "functionKeys.default" -o tsv)
+export AZURE_FUNCTION_KEY
+AZURE_FUNCTION_NAME=$(azd env get-values | grep FUNCTION_APP_NAME | cut -d'"' -f2)
+export AZURE_FUNCTION_NAME
+
 
 # Print all azd variables; only mask known secrets
 echo "\nAZD variables:" 

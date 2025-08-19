@@ -108,3 +108,23 @@ if ($STORAGE_CONNECTION_STRING -match 'AccountKey=([^;]+)') {
   $maskedStorage = Mask-Keep3 -Value $STORAGE_CONNECTION_STRING
 }
 Write-Host "Using Storage: $maskedStorage"
+
+
+# Export the Azure Function key to AZURE_FUNCTION_KEY (PowerShell equivalent of the bash script)
+Write-Host "Exporting environment variables for later use..."
+# Use azd env get-values to find function app name and resource group, then query function keys
+$functionAppName = ($azdValues | Select-String 'FUNCTION_APP_NAME="(.*?)"').Matches.Groups[1].Value
+$resourceGroup = ($azdValues | Select-String 'AZURE_RESOURCE_GROUP="(.*?)"').Matches.Groups[1].Value
+if ($functionAppName -and $resourceGroup) {
+  try {
+    $AZURE_FUNCTION_KEY = az functionapp keys list --name $functionAppName --resource-group $resourceGroup --query "functionKeys.default" -o tsv
+    # Set as environment variable for the session
+    $env:AZURE_FUNCTION_KEY = $AZURE_FUNCTION_KEY
+    $AZURE_FUNCTION_NAME = $functionAppName
+    $env:AZURE_FUNCTION_NAME = $AZURE_FUNCTION_NAME
+  } catch {
+    Write-Host "Warning: unable to fetch Azure Function key: $_"
+  }
+} else {
+  Write-Host "Warning: FUNCTION_APP_NAME or AZURE_RESOURCE_GROUP not found in azd environment values; skipping function key export."
+}
