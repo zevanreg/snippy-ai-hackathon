@@ -139,14 +139,6 @@ async def code_review_agent_activity(data: str) -> dict:
     
     code: str = data_dict.get("code", "")
     corr: str = data_dict.get("correlationId", "")
-    if os.environ.get("DISABLE_OPENAI") == "1":
-        # Deterministic mock results
-        issues = []
-        if "print(" in code:
-            issues.append({"type": "style", "message": "Avoid prints; use logging.", "severity": "low"})
-        if len(code) > 2000:
-            issues.append({"type": "perf", "message": "Large function body; consider refactor.", "severity": "medium"})
-        return {"summary": "Mock review", "issues": issues, "correlationId": corr}
 
     # Real model call omitted for brevity; rely on mock in tests
     return {"summary": "Review executed", "issues": [], "correlationId": corr}

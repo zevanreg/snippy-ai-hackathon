@@ -78,10 +78,7 @@ async def http_query(req: func.HttpRequest) -> func.HttpResponse:
 
 
 async def _chat_complete(system: str, user: str) -> tuple[str, dict]:
-    """Call Azure OpenAI Chat asynchronously; supports mock via env."""
-    if os.environ.get("DISABLE_OPENAI") == "1":
-        return ("This is a mocked answer.", {"mock": True})
-
+    """Call Azure OpenAI Chat asynchronously."""
     from azure.identity.aio import DefaultAzureCredential
     from azure.ai.projects.aio import AIProjectClient
 

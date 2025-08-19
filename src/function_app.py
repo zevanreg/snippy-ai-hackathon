@@ -27,40 +27,57 @@ import azure.functions as func
 
 app = func.FunctionApp()
 
+# Register blueprints with enhanced error handling to prevent startup issues
+
+# Core snippy functionality
 try:
     from functions import bp_snippy
-    app.register_blueprint(bp_snippy.app)
-    logging.info("Snippy blueprint registered successfully")
-except Exception as _e:
-    logging.warning(f"Snippy blueprint not registered: {_e}")
+    app.register_blueprint(bp_snippy.bp)
+    logging.info("✅ Snippy blueprint registered successfully")
+except ImportError as e:
+    logging.error(f"❌ Import error for Snippy blueprint: {e}")
+except Exception as e:
+    logging.error(f"❌ Snippy blueprint registration failed: {e}")
 
+# Query functionality  
 try:
     from routes import query
     app.register_blueprint(query.bp)
-    logging.info("Query blueprint registered successfully")
-except Exception as _e:
-    logging.warning(f"Query blueprint not registered: {_e}")
+    logging.info("✅ Query blueprint registered successfully")
+except ImportError as e:
+    logging.error(f"❌ Import error for Query blueprint: {e}")
+except Exception as e:
+    logging.error(f"❌ Query blueprint registration failed: {e}")
 
-try:
-    from functions import bp_embeddings
-    app.register_blueprint(bp_embeddings.bp)
-    logging.info("Embeddings blueprint registered successfully")
-except Exception as _e:
-    logging.warning(f"Embeddings blueprint not registered: {_e}")
+# Embeddings functionality - temporarily disabled due to SDK issues
+# try:
+#     from functions import bp_embeddings
+#     app.register_blueprint(bp_embeddings.bp)
+#     logging.info("✅ Embeddings blueprint registered successfully")
+# except ImportError as e:
+#     logging.error(f"❌ Import error for Embeddings blueprint: {e}")
+# except Exception as e:
+#     logging.error(f"❌ Embeddings blueprint registration failed: {e}")
 
-try:
-    from functions import bp_ingestion
-    app.register_blueprint(bp_ingestion.bp)
-    logging.info("Ingestion blueprint registered successfully")
-except Exception as _e:
-    logging.warning(f"Ingestion blueprint not registered: {_e}")
+# Ingestion functionality - temporarily disabled
+# try:
+#     from functions import bp_ingestion
+#     app.register_blueprint(bp_ingestion.bp)
+#     logging.info("✅ Ingestion blueprint registered successfully")
+# except ImportError as e:
+#     logging.error(f"❌ Import error for Ingestion blueprint: {e}")
+# except Exception as e:
+#     logging.error(f"❌ Ingestion blueprint registration failed: {e}")
 
+# Multi-agent functionality
 try:
     from functions import bp_multi_agent
     app.register_blueprint(bp_multi_agent.bp)
-    logging.info("Multi-agent blueprint registered successfully")
-except Exception as _e:
-    logging.warning(f"Multi-agent blueprint not registered: {_e}")
+    logging.info("✅ Multi-agent blueprint registered successfully")
+except ImportError as e:
+    logging.error(f"❌ Import error for Multi-agent blueprint: {e}")
+except Exception as e:
+    logging.error(f"❌ Multi-agent blueprint registration failed: {e}")
 
 
 # =============================================================================

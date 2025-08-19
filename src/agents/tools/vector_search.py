@@ -19,55 +19,6 @@ logging.getLogger("azure").setLevel(logging.WARNING)
 logging.getLogger("azure.core").setLevel(logging.WARNING)
 logging.getLogger("azure.ai.projects").setLevel(logging.WARNING)
 
-# Mock snippets data for offline testing
-_mock_snippets = [
-    {
-        "id": "hello-world",
-        "name": "hello-world", 
-        "code": "def hello_world():\n    return \"Hello, World!\"",
-        "projectId": "tutorial",
-        "score": 0.95
-    },
-    {
-        "id": "fibonacci",
-        "name": "fibonacci",
-        "code": "def fibonacci(n):\n    if n <= 1:\n        return n\n    return fibonacci(n-1) + fibonacci(n-2)",
-        "projectId": "algorithms", 
-        "score": 0.85
-    },
-    {
-        "id": "binary-search",
-        "name": "binary-search",
-        "code": "def binary_search(arr, target):\n    left, right = 0, len(arr) - 1\n    while left <= right:\n        mid = (left + right) // 2\n        if arr[mid] == target:\n            return mid\n        elif arr[mid] < target:\n            left = mid + 1\n        else:\n            right = mid - 1\n    return -1",
-        "projectId": "algorithms",
-        "score": 0.80
-    }
-]
-
-async def _mock_vector_search(query: str, k: int, project_id: str) -> str:
-    """Mock vector search for offline testing."""
-    logger.info("Performing mock vector search for query: '%s'", query)
-    
-    # Simple text matching for mock results
-    results = []
-    for snippet in _mock_snippets[:k]:
-        # Simple scoring based on text similarity
-        score = 0.5  # base score
-        if any(word.lower() in snippet["code"].lower() for word in query.lower().split()):
-            score += 0.3
-        if project_id == "default-project" or snippet["projectId"] == project_id:
-            score += 0.2
-        
-        snippet_copy = snippet.copy()
-        snippet_copy["score"] = score
-        results.append(snippet_copy)
-    
-    # Sort by score descending
-    results.sort(key=lambda x: x["score"], reverse=True)
-    
-    logger.info("Mock search returned %d results", len(results))
-    return json.dumps(results)
-
 # Performs vector similarity search on code snippets
 # Args:
 #     query: The search query text (plain language or code fragment)
@@ -77,11 +28,6 @@ async def _mock_vector_search(query: str, k: int, project_id: str) -> str:
 #     JSON string of matching snippets with their IDs, code, and similarity scores
 async def vector_search(query: str, k: int = 30, project_id: str = "default-project") -> str:
     logger.info("Starting vector search with query: '%s', k: %d, project_id: %s", query, k, project_id)
-    
-    # Check if running in offline mode
-    if os.environ.get("DISABLE_OPENAI") == "1":
-        logger.info("Running in offline mode - using mock vector search")
-        return await _mock_vector_search(query, k, project_id)
     
     # Retrieve required environment variables for authentication and model
     project_connection_string = os.environ.get("PROJECT_CONNECTION_STRING")

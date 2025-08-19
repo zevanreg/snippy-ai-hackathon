@@ -81,12 +81,6 @@ async def embed_chunk_activity(data: str) -> list[float]:
     if not text:
         return []
 
-    # Check for mock mode first, before checking required env vars
-    if os.environ.get("DISABLE_OPENAI") == "1":
-        # Return a tiny deterministic vector for tests/mock mode
-        logging.info("Using mock embedding for text: %s", text[:50])
-        return [0.0, 1.0, 0.0]
-
     # For real OpenAI mode, require environment variables
     model = os.environ.get("EMBEDDING_MODEL_DEPLOYMENT_NAME")
     conn = os.environ.get("PROJECT_CONNECTION_STRING")
