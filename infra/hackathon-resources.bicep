@@ -168,19 +168,91 @@ resource functionApp 'Microsoft.Web/sites@2024-11-01' = {
         }
         {
           name: 'COSMOS_DATABASE_NAME'
-          value: 'dev-snippet-db'
+          value: cosmosDatabase.name
         }
         {
           name: 'COSMOS_CONTAINER_NAME'
-          value: 'code-snippets'
+          value: cosmosContainer.name
         }
         {
           name: 'COSMOS_VECTOR_TOP_K'
+          value: '30'
+        }
+        {
+          name: 'COSMOS_KEY'
+          value: cosmosAccount.listKeys().primaryMasterKey
+        }
+        {
+          name: 'BLOB_CONTAINER_NAME'
+          value: blobContainer_snippetBackups.name
+        }
+        {
+          name: 'EMBEDDING_MODEL_DEPLOYMENT_NAME'
+          value: modelDeployment_embedding.name
+        }
+        {
+          name: 'AGENTS_MODEL_DEPLOYMENT_NAME'
+          value: modelDeployment_chat.name
+        }
+        {
+          name: 'PROJECT_CONNECTION_STRING'
+          value: 'https://${aiFoundry.properties.customSubDomainName}.services.ai.azure.com/api/projects/${aiProject.name}'
+        }
+        {
+          name: 'AZURE_OPENAI_ENDPOINT'
+          value: 'https://${aiFoundry.properties.customSubDomainName}.openai.azure.com'
+        }
+        {
+          name: 'AZURE_OPENAI_KEY'
+          value: aiFoundry.listKeys().key1
+        }
+        {
+          name: 'VECTOR_TOP_K'
           value: '5'
+        }
+        {
+          name: 'OPENAI_TEMPERATURE'
+          value: '0.2'
+        }
+        {
+          name: 'REQUEST_TIMEOUT_SEC'
+          value: '20'
         }
         {
           name: 'CHUNK_SIZE'
           value: '800'
+        }
+        {
+          name: 'INGESTION_CONTAINER'
+          value: blobContainer_snippetInputs.name
+        }
+        {
+          name: 'MAX_BLOB_MB'
+          value: '2'
+        }
+        {
+          name: 'DEFAULT_PROJECT_ID'
+          value: 'default-project'
+        }
+        {
+          name: 'OPENAI_CHAT_MODEL'
+          value: modelDeployment_chat.name
+        }
+        {
+          name: 'MAX_AGENT_ITERATIONS'
+          value: '3'
+        }
+        {
+          name: 'AGENT_TOKEN_LIMIT'
+          value: '4000'
+        }
+        {
+          name: 'ENABLE_CONTENT_FILTER'
+          value: '0'
+        }
+        {
+          name: 'MAX_CONCURRENT_AGENTS'
+          value: '3'
         }
       ]
       cors: {
