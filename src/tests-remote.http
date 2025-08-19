@@ -12,8 +12,8 @@
 # azd env get-value FUNCTION_APP_URL
 @baseURL = https://YOUR-FUNCTION-NAME.azurewebsites.net
 # run this command to get your function key:
-# az functionapp keys list -n func-xswd3cnfrredy --query "systemKeys.mcp_extension" -g snippy-ai-hackathon --output tsv
-@functionKey = "SECRET_KEY"
+# az functionapp keys list -n func-xswd3cnfrredy -g snippy-ai-hackathon --query "masterKey" --output tsv
+@functionKey = SECRET_KEY_NO_QUOTES
 
 ### Basic Snippet Operations
 GET {{baseURL}}/api/health
