@@ -6,6 +6,7 @@
 import json
 import logging
 import os
+from urllib.parse import urlparse
 from azure.identity.aio import DefaultAzureCredential
 from azure.ai.projects.aio import AIProjectClient
 from azure.ai.inference.aio import EmbeddingsClient
@@ -43,43 +44,47 @@ async def vector_search(query: str, k: int = 30, project_id: str = "default-proj
     try:
         logger.info("Authenticating with Azure using DefaultAzureCredential")
         # Authenticate with Azure using DefaultAzureCredential
-        async with DefaultAzureCredential() as credential:
-            logger.info("Connecting to AI Project client")
-            # Connect to the AI Project client using the connection string
-            async with AIProjectClient.from_connection_string(
-                credential=credential,
-                conn_str=project_connection_string,
-            ) as project_client:
-                logger.info("Creating embeddings client")
-                # Create an embeddings client from the AI project
-                async with await project_client.inference.get_embeddings_client() as embeddings_client:
-                    logger.info("Generating embeddings for query using model: %s", model_deployment_name)
-                    # Generate embeddings for the input query
-                    response = await embeddings_client.embed(
-                        model=model_deployment_name,
-                        input=[query]
-                    )
+        
+        logger.info("Connecting to AI Project client")
+        # Connect to the AI Project client using the connection string
+        
+        project_endpoint = os.environ["PROJECT_CONNECTION_STRING"]
+        inference_endpoint = f"https://{urlparse(project_endpoint).netloc}/models"
+        
+        logger.info("Creating embeddings client")
+        async with EmbeddingsClient(
+            endpoint=inference_endpoint,
+            credential=DefaultAzureCredential(),
+            credential_scopes=["https://ai.azure.com/.default"],
+        ) as embeddings_client:
+            # Create an embeddings client from the AI project
+            logger.info("Generating embeddings for query using model: %s", model_deployment_name)
+            # Generate embeddings for the input query
+            response = await embeddings_client.embed(
+                model=model_deployment_name,
+                input=[query]
+            )
 
-                    # Ensure the embedding was generated successfully
-                    if not response.data or not response.data[0].embedding:
-                        logger.error("Failed to generate embedding. Response data: %s", response)
-                        raise ValueError("Failed to generate embedding.")
+            # Ensure the embedding was generated successfully
+            if not response.data or not response.data[0].embedding:
+                logger.error("Failed to generate embedding. Response data: %s", response)
+                raise ValueError("Failed to generate embedding.")
 
-                    # Extract the embedding vector and ensure it's a list of floats
-                    query_vector = [float(x) for x in response.data[0].embedding]
-                    logger.info("Successfully generated embedding vector of length: %d", len(query_vector))
+            # Extract the embedding vector and ensure it's a list of floats
+            query_vector = [float(x) for x in response.data[0].embedding]
+            logger.info("Successfully generated embedding vector of length: %d", len(query_vector))
 
-                    # Perform vector search in Cosmos DB with the generated embedding
-                    logger.info("Querying Cosmos DB for similar snippets")
-                    results = await cosmos_ops.query_similar_snippets(
-                        query_vector=query_vector,
-                        project_id=project_id,
-                        k=k
-                    )
-                    logger.info("Found %d similar snippets", len(results))
+            # Perform vector search in Cosmos DB with the generated embedding
+            logger.info("Querying Cosmos DB for similar snippets")
+            results = await cosmos_ops.query_similar_snippets(
+                query_vector=query_vector,
+                project_id=project_id,
+                k=k
+            )
+            logger.info("Found %d similar snippets", len(results))
 
-                    # Return the search results as a JSON string
-                    return json.dumps(results)
+            # Return the search results as a JSON string
+            return json.dumps(results)
 
     except Exception as e:
         # Log any errors and return an error payload

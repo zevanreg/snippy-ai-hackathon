@@ -4,11 +4,12 @@
 # - Creates an agent to analyze code and generate wiki documentation
 # - Uses vector search to gather relevant code snippets
 # - Returns a complete wiki.md document
+import asyncio
 import os
 import logging
 import time
 from azure.ai.projects.aio import AIProjectClient
-from azure.ai.projects.models import AsyncFunctionTool
+from azure.ai.agents.models import AsyncFunctionTool, ListSortOrder
 from azure.identity.aio import DefaultAzureCredential
 from agents.tools import vector_search
 
@@ -93,101 +94,112 @@ async def generate_deep_wiki(chat_history: str = "", user_query: str = "") -> st
         # Log the system prompt for debugging and transparency
         logger.info("System prompt:\n%s", _DEEP_WIKI_SYSTEM_PROMPT)
         
-        # Create an Azure credential for authentication
-        logger.info("Initializing Azure authentication")
-        async with DefaultAzureCredential() as credential:
-            # Connect to the Azure AI Project that hosts our agent
-            logger.info("Connecting to Azure AI Project")
-            async with AIProjectClient.from_connection_string(
-                credential=credential,
-                conn_str=os.environ["PROJECT_CONNECTION_STRING"]
-            ) as project_client:
-                # Create the vector search tool that the agent will use
-                logger.info("Setting up vector search tool")
-                functions = AsyncFunctionTool(functions=[vector_search.vector_search])
-                
-                # Create the agent with its personality and tools
-                logger.info("Creating DeepWiki agent with model: %s", os.environ["AGENTS_MODEL_DEPLOYMENT_NAME"])
-                agent = await project_client.agents.create_agent(
-                    name="DeepWikiAgent",
-                    description="An agent that generates comprehensive wiki documentation",
-                    instructions=_DEEP_WIKI_SYSTEM_PROMPT,
-                    tools=functions.definitions,
-                    model=os.environ["AGENTS_MODEL_DEPLOYMENT_NAME"]
-                )
-                logger.info("Created agent: %s with tool: vector_search", agent.name)
-                
-                # Create a conversation thread for the agent
-                logger.info("Creating conversation thread")
-                thread = await project_client.agents.create_thread()
-                
-                # Add chat history if provided
-                if chat_history:
-                    logger.info("Adding chat history to thread")
-                    await project_client.agents.create_message(
-                        thread_id=thread.id,
-                        role="user",
-                        content=chat_history
-                    )
-                
-                # Add the user's query or default message
-                final_query = user_query if user_query else "Generate a comprehensive wiki documentation."
-                logger.info("Adding user query to thread: %s", final_query)
-                await project_client.agents.create_message(
+        # Connect to the Azure AI Project that hosts our agent
+        logger.info("Connecting to Azure AI Project")
+        project_client = AIProjectClient(
+            endpoint=os.environ["PROJECT_CONNECTION_STRING"],
+            credential=DefaultAzureCredential(),
+        )
+        async with project_client:
+            # Create the vector search tool that the agent will use
+            logger.info("Setting up vector search tool")
+            functions = AsyncFunctionTool(functions=[vector_search.vector_search])
+            
+            # Create the agent with its personality and tools
+            logger.info("Creating DeepWiki agent with model: %s", os.environ["AGENTS_MODEL_DEPLOYMENT_NAME"])
+            agent = await project_client.agents.create_agent(
+                name="DeepWikiAgent",
+                description="An agent that generates comprehensive wiki documentation",
+                instructions=_DEEP_WIKI_SYSTEM_PROMPT,
+                tools=functions.definitions,
+                model=os.environ["AGENTS_MODEL_DEPLOYMENT_NAME"]
+            )
+            logger.info("Created agent: %s with tool: vector_search", agent.name)
+            
+            # Create a conversation thread for the agent
+            logger.info("Creating conversation thread")
+            thread = await project_client.agents.threads.create()
+            
+            # Add chat history if provided
+            if chat_history:
+                logger.info("Adding chat history to thread")
+                await project_client.agents.messages.create(
                     thread_id=thread.id,
                     role="user",
-                    content=final_query
+                    content=chat_history
                 )
+            
+            # Add the user's query or default message
+            final_query = user_query if user_query else "Generate a comprehensive wiki documentation."
+            logger.info("Adding user query to thread: %s", final_query)
+            await project_client.agents.messages.create(
+                thread_id=thread.id,
+                role="user",
+                content=final_query
+            )
+            
+            # Start the agent's execution
+            logger.info("Starting agent execution")
+            run = await project_client.agents.runs.create(
+                thread_id=thread.id,
+                agent_id=agent.id
+            )
+            
+            # Monitor the agent's progress and handle tool calls
+            tool_call_count = 0
+            while True:
+                run = await project_client.agents.runs.get(thread_id=thread.id, run_id=run.id)
+                logger.info("Agent run status: %s", run.status)
                 
-                # Start the agent's execution
-                logger.info("Starting agent execution")
-                run = await project_client.agents.create_run(
-                    thread_id=thread.id,
-                    agent_id=agent.id
-                )
-                
-                # Monitor the agent's progress and handle tool calls
-                tool_call_count = 0
-                while True:
-                    run = await project_client.agents.get_run(thread_id=thread.id, run_id=run.id)
-                    logger.info("Agent run status: %s", run.status)
-                    
-                    if run.status == "completed":
-                        logger.info("Agent run completed successfully")
-                        break
-                    elif run.status == "failed":
-                        logger.error("Agent run failed with : %s", run)
-                        raise Exception("Agent run failed")
-                    elif run.status == "requires_action":
-                        # Handle tool calls from the agent
-                        tool_calls = run.required_action.submit_tool_outputs.tool_calls
-                        logger.info("Agent requires action with %d tool calls", len(tool_calls))
-                        tool_outputs = []
-                        for tool_call in tool_calls:
-                            logger.info("Agent %s calling tool: %s with arguments: %s", 
-                                      agent.name, 
-                                      tool_call.function.name,
-                                      tool_call.function.arguments)
-                            output = await functions.execute(tool_call)
-                            logger.info("Tool call completed with output length: %d", len(str(output)))
-                            tool_outputs.append({
-                                "tool_call_id": tool_call.id,
-                                "output": output
-                            })
-                            tool_call_count += 1
-                        await project_client.agents.submit_tool_outputs_to_run(
-                            thread_id=thread.id,
-                            run_id=run.id,
-                            tool_outputs=tool_outputs
-                        )
-                
-                # Get the final response from the agent
-                logger.info("Retrieving final response from agent")
-                messages = await project_client.agents.list_messages(thread_id=thread.id)
-                response = str(messages.data[0].content[0].text.value)
-                logger.info("Wiki documentation generated by %s (%d tool calls). Response length: %d", 
-                          agent.name, tool_call_count, len(response))
-                return response
+                if run.status == "completed":
+                    logger.info("Agent run completed successfully")
+                    break
+                elif run.status == "failed":
+                    logger.error("Agent run failed with : %s", run)
+                    raise Exception("Agent run failed")
+                elif run.status == "requires_action":
+                    # Handle tool calls from the agent
+                    tool_calls = run.required_action.submit_tool_outputs.tool_calls
+                    logger.info("Agent requires action with %d tool calls", len(tool_calls))
+                    tool_outputs = []
+                    for tool_call in tool_calls:
+                        logger.info("Agent %s calling tool: %s with arguments: %s", 
+                                    agent.name, 
+                                    tool_call.function.name,
+                                    tool_call.function.arguments)
+                        output = await functions.execute(tool_call)
+                        logger.info("Tool call completed with output length: %d", len(str(output)))
+                        tool_outputs.append({
+                            "tool_call_id": tool_call.id,
+                            "output": output
+                        })
+                        tool_call_count += 1
+                    await project_client.agents.runs.submit_tool_outputs(
+                        thread_id=thread.id,
+                        run_id=run.id,
+                        tool_outputs=tool_outputs
+                    )
+                # Sleep briefly to avoid hammering the API
+                await asyncio.sleep(0.1)
+            
+            # Get the final response from the agent
+            logger.info("Retrieving final response from agent")
+            messages = project_client.agents.messages.list(thread_id=thread.id, order=ListSortOrder.DESCENDING)
+
+            # Get the first message from the AsyncItemPaged object
+            first_message = None
+            async for message in messages:
+                first_message = message
+                break
+
+            if first_message is None:
+                raise ValueError("No messages found in the thread")
+
+            response = str(first_message.text_messages[-1].text.value)
+            # response = str(messages[0].data[0].content[0].text.value)
+            logger.info("Wiki documentation generated by %s (%d tool calls). Response length: %d", 
+                        agent.name, tool_call_count, len(response))
+            return response
                 
     except Exception as e:
         logger.error("Wiki generation failed with error: %s", str(e), exc_info=True)

@@ -179,7 +179,7 @@ async def http_save_snippet(req: func.HttpRequest, embeddings: str) -> func.Http
 @bp.embeddings_input(
     arg_name="embeddings", 
     input="{arguments." + _SNIPPET_PROPERTY_NAME + "}", 
-    input_type="text", 
+    input_type="rawText", 
     embeddings_model="%EMBEDDING_MODEL_DEPLOYMENT_NAME%"
 )
 async def mcp_save_snippet(context: str, embeddings: str) -> str:
