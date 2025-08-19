@@ -418,7 +418,7 @@ output chatModelDeploymentName string = modelDeployment_chat.name
 output chatModelDeploymentType string = modelDeployment_chat.properties.model.name
 
 
-
+output functionAppName string = functionApp.name
 output functionAppUrl string = 'https://${functionApp.properties.defaultHostName}'
 output endpoints array = [
   'https://${functionApp.properties.defaultHostName}/api/health'

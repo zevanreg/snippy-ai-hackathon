@@ -104,6 +104,9 @@ output CHAT_MODEL_DEPLOYMENT_NAME string = hackathonResources.outputs.chatModelD
 @description('Type/name of the chat model (e.g., gpt-4o)')
 output CHAT_MODEL_DEPLOYMENT_TYPE string = hackathonResources.outputs.chatModelDeploymentType
 
+@description('Name of the Azure Function App')
+output AZURE_FUNCTION_NAME string = hackathonResources.outputs.functionAppName
+
 @description('Base URL of the deployed Azure Function App')
 output FUNCTION_APP_URL string = hackathonResources.outputs.functionAppUrl
 
