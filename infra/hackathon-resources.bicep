@@ -404,6 +404,7 @@ output storageBlobContainerSnippetInputs string = blobContainer_snippetInputs.na
 output storageBlobContainerSnippetBackups string = blobContainer_snippetBackups.name
 
 output cosmosEndpoint string = cosmosAccount.properties.documentEndpoint
+output cosmosKey string = cosmosAccount.listKeys().primaryMasterKey
 output cosmosDatabaseName string = cosmosDatabase.name
 output cosmosContainerName string = cosmosContainer.name
 

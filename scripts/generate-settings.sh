@@ -24,13 +24,14 @@ cat > src/local.settings.json << EOF
     "AzureWebJobsStorage": "${STORAGE_CONNECTION_STRING:-UseDevelopmentStorage=true}",
     "FUNCTIONS_WORKER_RUNTIME": "python",
     "PYTHON_ENABLE_WORKER_EXTENSIONS": "True",
+    "COSMOS_ENDPOINT": "${COSMOS_ENDPOINT:-https://localhost:8081}",
+    "COSMOS_KEY": "${COSMOS_KEY:-}",
     "COSMOS_DATABASE_NAME": "${COSMOS_DATABASE_NAME:-dev-snippet-db}",
     "COSMOS_CONTAINER_NAME": "${COSMOS_CONTAINER_NAME:-code-snippets}",
     "COSMOS_VECTOR_TOP_K": "30",
     "BLOB_CONTAINER_NAME": "${STORAGE_CONTAINER_SNIPPETBACKUPS:-snippet-backups}",
     "EMBEDDING_MODEL_DEPLOYMENT_NAME": "${EMBEDDING_MODEL_DEPLOYMENT_NAME:-text-embedding-3-small}",
     "AGENTS_MODEL_DEPLOYMENT_NAME": "${CHAT_MODEL_DEPLOYMENT_NAME:-gpt-4o}",
-    "COSMOS_ENDPOINT": "${COSMOS_ENDPOINT:-https://localhost:8081}",
     "PROJECT_CONNECTION_STRING": "${AI_PROJECT_CONNECTION_STRING:-}",
     "AZURE_OPENAI_ENDPOINT": "${AI_FOUNDRY_OPENAI_ENDPOINT:-}",
     "AZURE_OPENAI_KEY": "${AI_FOUNDRY_OPENAI_KEY:-}",
@@ -73,6 +74,7 @@ mask_keep3() {
 # Print all azd variables; only mask known secrets
 echo "\nAZD variables:" 
 echo "COSMOS_ENDPOINT: ${COSMOS_ENDPOINT}"
+echo "COSMOS_KEY: $(mask_keep3 "$COSMOS_KEY")"
 echo "COSMOS_DATABASE_NAME: ${COSMOS_DATABASE_NAME}"
 echo "COSMOS_CONTAINER_NAME: ${COSMOS_CONTAINER_NAME}"
 # AI_PROJECT_CONNECTION_STRING is secret-ish (mask)
