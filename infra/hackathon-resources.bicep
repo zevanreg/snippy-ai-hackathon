@@ -332,7 +332,7 @@ resource modelDeployment_chat 'Microsoft.CognitiveServices/accounts/deployments@
   parent: aiFoundry
   name: 'gpt-4o'
   sku: {
-    capacity: 1
+    capacity: 50
     name: 'GlobalStandard'
   }
   properties: {
@@ -347,7 +347,7 @@ resource modelDeployment_embedding 'Microsoft.CognitiveServices/accounts/deploym
   parent: aiFoundry
   name: 'text-embedding-3-small'
   sku: {
-    capacity: 1
+    capacity: 50
     name: 'GlobalStandard'
   }
   properties: {
@@ -450,13 +450,13 @@ resource aiProjectAppInsightsContributor 'Microsoft.Authorization/roleAssignment
 }
 
 // RBAC: Grant Function App access to AI Foundry
-resource functionAppAiFoundryUser 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(aiFoundry.id, functionApp.id, 'CognitiveServicesOpenAIUser')
+resource functionAppAzureAIUser 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(aiFoundry.id, functionApp.id, 'AzureAIUser')
   scope: aiFoundry
   properties: {
     roleDefinitionId: subscriptionResourceId(
       'Microsoft.Authorization/roleDefinitions',
-      '5e0bd9bd-7b93-4f28-af87-19fc36ad61bd'
+      '53ca6127-db72-4b80-b1b0-d745d6d5456d'
     ) // Cognitive Services OpenAI User
     principalId: functionApp.identity.principalId
     principalType: 'ServicePrincipal'
@@ -466,6 +466,8 @@ resource functionAppAiFoundryUser 'Microsoft.Authorization/roleAssignments@2022-
     modelDeployment_chat
   ]
 }
+
+
 
 
 
