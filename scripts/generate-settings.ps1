@@ -67,5 +67,42 @@ $jsonContent | Out-File -FilePath $settingsPath -Encoding utf8
 Write-Host "local.settings.json generated successfully in src directory!"
 Write-Host "Using Cosmos DB: $COSMOS_ENDPOINT"
 Write-Host "Using AI Foundry: $AI_FOUNDRY_OPENAI_ENDPOINT"
-$maskedStorage = $STORAGE_CONNECTION_STRING -replace "AccountKey=[^;]+", "AccountKey=***"
+# Helper to mask a value keeping first 3 characters and masking the rest with '*'
+function Mask-Keep3 {
+  param(
+    [string]$Value
+  )
+  if ([string]::IsNullOrEmpty($Value)) { return "" }
+  if ($Value.Length -le 3) { return $Value }
+  $prefix = $Value.Substring(0,3)
+  $masked = '*' * 5
+  return "$prefix$masked"
+}
+
+# Print all azd variables (masked where appropriate)
+# Print all azd variables; only mask known secrets
+Write-Host "`nAZD variables:"
+Write-Host "COSMOS_ENDPOINT: $COSMOS_ENDPOINT"
+Write-Host "COSMOS_DATABASE_NAME: $COSMOS_DATABASE_NAME"
+Write-Host "COSMOS_CONTAINER_NAME: $COSMOS_CONTAINER_NAME"
+# AI_PROJECT_CONNECTION_STRING is secret-ish (mask)
+Write-Host "AI_PROJECT_CONNECTION_STRING: $(Mask-Keep3 -Value $AI_PROJECT_CONNECTION_STRING)"
+Write-Host "AI_FOUNDRY_OPENAI_ENDPOINT: $AI_FOUNDRY_OPENAI_ENDPOINT"
+# API key for OpenAI: mask
+Write-Host "AI_FOUNDRY_OPENAI_KEY: $(Mask-Keep3 -Value $AI_FOUNDRY_OPENAI_KEY)"
+Write-Host "STORAGE_CONTAINER_SNIPPETBACKUPS: $STORAGE_CONTAINER_SNIPPETBACKUPS"
+Write-Host "STORAGE_CONTAINER_SNIPPETINPUT: $STORAGE_CONTAINER_SNIPPETINPUT"
+Write-Host "EMBEDDING_MODEL_DEPLOYMENT_NAME: $EMBEDDING_MODEL_DEPLOYMENT_NAME"
+Write-Host "CHAT_MODEL_DEPLOYMENT_NAME: $CHAT_MODEL_DEPLOYMENT_NAME"
+# Application Insights connection string is secret (mask)
+Write-Host "APP_INSIGHTS_CONNECTION_STRING: $(Mask-Keep3 -Value $APP_INSIGHTS_CONNECTION_STRING)"
+
+# Mask only the AccountKey value for storage connection string when displaying the common summary
+if ($STORAGE_CONNECTION_STRING -match 'AccountKey=([^;]+)') {
+  $accountKey = $Matches[1]
+  $maskedKey = Mask-Keep3 -Value $accountKey
+  $maskedStorage = $STORAGE_CONNECTION_STRING -replace "AccountKey=[^;]+", "AccountKey=$maskedKey"
+} else {
+  $maskedStorage = Mask-Keep3 -Value $STORAGE_CONNECTION_STRING
+}
 Write-Host "Using Storage: $maskedStorage"

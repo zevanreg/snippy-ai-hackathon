@@ -54,4 +54,46 @@ EOF
 echo "local.settings.json generated successfully in src directory!"
 echo "Using Cosmos DB: ${COSMOS_ENDPOINT}"
 echo "Using AI Foundry: ${AI_FOUNDRY_OPENAI_ENDPOINT}"
-echo "Using Storage: ${STORAGE_CONNECTION_STRING%%AccountKey=*}AccountKey=***"
+# Helper to mask a value keeping first 3 characters and masking the rest with '*'
+mask_keep3() {
+  local val="$1"
+  if [ -z "$val" ]; then
+    echo ""
+    return
+  fi
+  local prefix="${val:0:3}"
+  if [ ${#val} -le 3 ]; then
+    echo "$val"
+    return
+  fi
+  # Always mask with exactly five '*' characters after the first 3 chars
+  echo "${prefix}*****"
+}
+
+# Print all azd variables; only mask known secrets
+echo "\nAZD variables:" 
+echo "COSMOS_ENDPOINT: ${COSMOS_ENDPOINT}"
+echo "COSMOS_DATABASE_NAME: ${COSMOS_DATABASE_NAME}"
+echo "COSMOS_CONTAINER_NAME: ${COSMOS_CONTAINER_NAME}"
+# AI_PROJECT_CONNECTION_STRING is secret-ish (mask)
+echo "AI_PROJECT_CONNECTION_STRING: $(mask_keep3 "$AI_PROJECT_CONNECTION_STRING")"
+echo "AI_FOUNDRY_OPENAI_ENDPOINT: ${AI_FOUNDRY_OPENAI_ENDPOINT}"
+# API key for OpenAI: mask
+echo "AI_FOUNDRY_OPENAI_KEY: $(mask_keep3 "$AI_FOUNDRY_OPENAI_KEY")"
+echo "STORAGE_CONTAINER_SNIPPETBACKUPS: ${STORAGE_CONTAINER_SNIPPETBACKUPS}"
+echo "STORAGE_CONTAINER_SNIPPETINPUT: ${STORAGE_CONTAINER_SNIPPETINPUT}"
+echo "EMBEDDING_MODEL_DEPLOYMENT_NAME: ${EMBEDDING_MODEL_DEPLOYMENT_NAME}"
+echo "CHAT_MODEL_DEPLOYMENT_NAME: ${CHAT_MODEL_DEPLOYMENT_NAME}"
+# Application Insights connection string is secret (mask)
+echo "APP_INSIGHTS_CONNECTION_STRING: $(mask_keep3 "$APP_INSIGHTS_CONNECTION_STRING")"
+
+# Mask only the AccountKey value for storage connection string when displaying the common summary
+if [[ "${STORAGE_CONNECTION_STRING}" == *"AccountKey="* ]]; then
+  key_part="${STORAGE_CONNECTION_STRING#*AccountKey=}"
+  key_part="${key_part%%;*}"
+  masked_key=$(mask_keep3 "$key_part")
+  masked_storage="${STORAGE_CONNECTION_STRING/AccountKey=${key_part}/AccountKey=${masked_key}}"
+else
+  masked_storage="$(mask_keep3 "${STORAGE_CONNECTION_STRING}")"
+fi
+echo "Using Storage: ${masked_storage}"
