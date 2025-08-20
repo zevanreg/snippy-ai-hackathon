@@ -1,2 +1,3 @@
 # Always normalize shell scripts to LF
 *.sh text eol=lf
+* text=auto
