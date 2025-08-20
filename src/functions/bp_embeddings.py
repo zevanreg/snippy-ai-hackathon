@@ -89,13 +89,21 @@ async def embed_chunk_activity(data: str) -> list[float]:
         return [0.0, 1.0, 0.0]
 
     try:
+        # Extract endpoint from connection string (Endpoint=...;Project=...;Key=...)
+        import re
+        match = re.search(r"Endpoint=([^;]+)", conn)
+        if not match:
+            logging.error("Invalid PROJECT_CONNECTION_STRING: missing Endpoint component")
+            return []
+        endpoint = match.group(1)
+
         async with DefaultAzureCredential() as cred:
-            async with AIProjectClient.from_connection_string(credential=cred, conn_str=conn) as proj:
-                async with await proj.inference.get_embeddings_client() as embeds:
-                    rsp = await embeds.embed(model=model, input=[text])
-                    if not rsp.data or not rsp.data[0].embedding:
-                        return []
-                    return [float(x) for x in rsp.data[0].embedding]
+            from azure.ai.inference.aio import EmbeddingsClient
+            async with EmbeddingsClient(endpoint=endpoint, credential=cred) as embeds:
+                rsp = await embeds.embed(model=model, input=[text])
+                if not rsp.data or not rsp.data[0].embedding:
+                    return []
+                return [float(x) for x in rsp.data[0].embedding]
     except Exception as e:
         logging.error("Embedding failed: %s", e, exc_info=True)
         return []

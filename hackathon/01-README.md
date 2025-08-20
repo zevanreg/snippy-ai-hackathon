@@ -27,7 +27,7 @@ Build an enterprise-grade AI-powered knowledge assistant using Azure Functions, 
 
 ### ✅ Teams Aiming for Completion
 1. **Focus on Levels 1-5 first**
-2. **Attempt Levels 6** if time permits
+2. **Attempt Level 6** if time permits
 3. **Prioritize solid implementation** over feature breadth
 
 ### 🚀 Advanced Teams

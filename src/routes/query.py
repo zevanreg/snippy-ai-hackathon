@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 from typing import Any, Sequence
 
 import azure.functions as func
@@ -61,7 +62,7 @@ async def http_query(req: func.HttpRequest) -> func.HttpResponse:
             return func.HttpResponse(body=raw, mimetype="application/json", status_code=502)
 
         contexts = [r.get("code", "") for r in results]
-        citations = [{"id": r.get("id"), "score": r.get("score")} for r in results]
+        citations = [{"id": r.get("id"), "code": r.get("code", ""), "score": r.get("score")} for r in results]
 
         # Compose prompt
         system = "You are a concise assistant. Answer using provided snippets. Cite ids."
@@ -80,12 +81,14 @@ async def http_query(req: func.HttpRequest) -> func.HttpResponse:
 async def _chat_complete(system: str, user: str) -> tuple[str, dict]:
     """Call Azure OpenAI Chat asynchronously."""
     from azure.identity.aio import DefaultAzureCredential
-    from azure.ai.projects.aio import AIProjectClient
+    from azure.ai.inference.aio import ChatCompletionsClient
 
     model = os.environ.get("AGENTS_MODEL_DEPLOYMENT_NAME") or os.environ.get("OPENAI_CHAT_MODEL")
-    conn = os.environ.get("PROJECT_CONNECTION_STRING")
-    if not model or not conn:
-        return ("Model or connection not configured.", {"error": True})
+    
+    # Try Azure OpenAI endpoint first
+    endpoint = os.environ.get("AZURE_OPENAI_ENDPOINT")
+    if not model or not endpoint:
+        return ("Model or endpoint not configured.", {"error": True})
 
     messages: list[ChatRequestMessage] = [
         SystemMessage(content=system),
@@ -94,9 +97,8 @@ async def _chat_complete(system: str, user: str) -> tuple[str, dict]:
 
     try:
         cred = DefaultAzureCredential()
-        async with AIProjectClient.from_connection_string(credential=cred, conn_str=conn) as proj:
-            chat = await proj.inference.get_chat_completions_client()
-            rsp = await chat.complete(
+        async with ChatCompletionsClient(endpoint=endpoint, credential=cred) as client:
+            rsp = await client.complete(
                 model=model,
                 messages=messages,
                 temperature=TEMP
