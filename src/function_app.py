@@ -59,15 +59,15 @@ except ImportError as e:
 except Exception as e:
     logging.error(f"❌ Embeddings blueprint registration failed: {e}")
 
-# Ingestion functionality - temporarily disabled
-# try:
-#     from functions import bp_ingestion
-#     app.register_blueprint(bp_ingestion.bp)
-#     logging.info("✅ Ingestion blueprint registered successfully")
-# except ImportError as e:
-#     logging.error(f"❌ Import error for Ingestion blueprint: {e}")
-# except Exception as e:
-#     logging.error(f"❌ Ingestion blueprint registration failed: {e}")
+# Ingestion functionality - blob trigger for Level 4
+try:
+    from functions import bp_ingestion
+    app.register_blueprint(bp_ingestion.bp)
+    logging.info("✅ Ingestion blueprint registered successfully")
+except ImportError as e:
+    logging.error(f"❌ Import error for Ingestion blueprint: {e}")
+except Exception as e:
+    logging.error(f"❌ Ingestion blueprint registration failed: {e}")
 
 # Multi-agent functionality
 try:

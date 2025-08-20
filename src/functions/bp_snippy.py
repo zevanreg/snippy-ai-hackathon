@@ -85,12 +85,36 @@ tool_properties_code_style = [
     ToolProperty(_USER_QUERY_PROPERTY_NAME, "string", "Optional. The user's specific question, instruction, or prompt related to code style. If omitted, a general code style analysis or a default guide might be generated."),
 ]
 
+# Properties for the search_snippets tool
+# This tool performs semantic search across saved snippets
+tool_properties_search_snippets = [
+    ToolProperty("query", "string", "The search query to find relevant code snippets. Can be a description of functionality, code patterns, or keywords."),
+    ToolProperty(_PROJECT_ID_PROPERTY_NAME, "string", "Optional. Filter search results to a specific project. If omitted, searches across all projects."),
+    ToolProperty("max_results", "string", "Optional. Maximum number of results to return (default: 5). Provide as string representation of a number."),
+]
+
+# Properties for the list_snippets tool
+# This tool lists all available snippets, optionally filtered by project
+tool_properties_list_snippets = [
+    ToolProperty(_PROJECT_ID_PROPERTY_NAME, "string", "Optional. Filter snippets to a specific project. If omitted, lists snippets from all projects."),
+]
+
+# Properties for the delete_snippet tool
+# This tool deletes a specific snippet by name
+tool_properties_delete_snippet = [
+    ToolProperty(_SNIPPET_NAME_PROPERTY_NAME, "string", "The unique name or identifier of the code snippet to delete. This is required."),
+    ToolProperty(_PROJECT_ID_PROPERTY_NAME, "string", "Optional. The project ID where the snippet is stored. If omitted, searches across all projects."),
+]
+
 # Convert tool properties to JSON for MCP tool registration
 # This is required format for the MCP tool trigger binding
 tool_properties_save_snippets_json = json.dumps([prop.to_dict() for prop in tool_properties_save_snippets])
 tool_properties_get_snippets_json = json.dumps([prop.to_dict() for prop in tool_properties_get_snippets])
 tool_properties_wiki_json = json.dumps([prop.to_dict() for prop in tool_properties_wiki])
 tool_properties_code_style_json = json.dumps([prop.to_dict() for prop in tool_properties_code_style])
+tool_properties_search_snippets_json = json.dumps([prop.to_dict() for prop in tool_properties_search_snippets])
+tool_properties_list_snippets_json = json.dumps([prop.to_dict() for prop in tool_properties_list_snippets])
+tool_properties_delete_snippet_json = json.dumps([prop.to_dict() for prop in tool_properties_delete_snippet])
 
 
 # =============================================================================
@@ -547,4 +571,186 @@ async def mcp_deep_wiki(context) -> str:
     except Exception as e:
         # General error handling
         logging.error(f"Error in mcp_deep_wiki: {str(e)}")
+        return json.dumps({"error": str(e)})
+
+
+# =============================================================================
+# ADDITIONAL MCP TOOLS
+# =============================================================================
+
+# MCP tool for searching snippets
+@bp.generic_trigger(
+    arg_name="context",
+    type="mcpToolTrigger",
+    toolName="search_snippets",
+    description="Performs semantic search across saved code snippets using vector similarity. Provide a 'query' to search for relevant snippets. Optionally filter by 'projectid' and specify 'max_results'.",
+    toolProperties=tool_properties_search_snippets_json,
+)
+async def mcp_search_snippets(context) -> str:
+    """
+    MCP tool to search for code snippets using semantic search.
+    
+    This tool enables AI assistants to find relevant code snippets based on
+    natural language queries or code descriptions.
+    """
+    try:
+        # Parse the context JSON string to extract the arguments
+        mcp_data = json.loads(context)
+        args = mcp_data.get("arguments", {})
+        
+        # Extract search parameters
+        query = args.get("query", "")
+        project_id = args.get(_PROJECT_ID_PROPERTY_NAME, "")
+        max_results = int(args.get("max_results", "5"))
+        
+        if not query:
+            return json.dumps({"error": "Query parameter is required for search"})
+        
+        # Import the vector search tool
+        from agents.tools import vector_search as vs
+        
+        # Perform the search using the existing vector search functionality
+        search_results_json = await vs.vector_search(
+            query=query,
+            project_id=project_id if project_id else "default-project",
+            k=max_results
+        )
+        
+        # Parse the JSON result
+        search_results = json.loads(search_results_json)
+        
+        # Format results for MCP response
+        if "error" in search_results:
+            return json.dumps(search_results)
+        
+        # The search results should be a list of snippets
+        snippets = search_results if isinstance(search_results, list) else []
+        
+        formatted_results = {
+            "query": query,
+            "results_count": len(snippets),
+            "snippets": snippets
+        }
+        
+        logging.info(f"MCP: Search for '{query}' returned {formatted_results['results_count']} results")
+        return json.dumps(formatted_results)
+        
+    except json.JSONDecodeError:
+        return json.dumps({"error": "Invalid JSON received in context"})
+    except Exception as e:
+        logging.error(f"Error in mcp_search_snippets: {str(e)}")
+        return json.dumps({"error": str(e)})
+
+
+# MCP tool for listing snippets
+@bp.generic_trigger(
+    arg_name="context",
+    type="mcpToolTrigger",
+    toolName="list_snippets",
+    description="Lists all saved code snippets. Optionally filter by 'projectid' to show snippets from a specific project only.",
+    toolProperties=tool_properties_list_snippets_json,
+)
+async def mcp_list_snippets(context) -> str:
+    """
+    MCP tool to list all available code snippets.
+    
+    This tool enables AI assistants to see what snippets are available
+    for use or reference.
+    """
+    try:
+        # Parse the context JSON string to extract the arguments
+        mcp_data = json.loads(context)
+        args = mcp_data.get("arguments", {})
+        
+        # Extract filter parameters
+        project_id = args.get(_PROJECT_ID_PROPERTY_NAME, "")
+        
+        # Get snippets from Cosmos DB
+        snippets = await cosmos_ops.list_all_snippets()
+        
+        # Filter by project_id if specified
+        if project_id:
+            snippets = [s for s in snippets if s.get("projectId") == project_id]
+        
+        # Format results for MCP response
+        snippet_list = []
+        for snippet in snippets:
+            snippet_info = {
+                "name": snippet.get("name", "unknown"),
+                "projectId": snippet.get("projectId", ""),
+                "id": snippet.get("id", ""),
+                "code_preview": snippet.get("code", "")[:100] + ("..." if len(snippet.get("code", "")) > 100 else "")
+            }
+            snippet_list.append(snippet_info)
+        
+        result = {
+            "total_count": len(snippet_list),
+            "project_filter": project_id if project_id else "all_projects",
+            "snippets": snippet_list
+        }
+        
+        logging.info(f"MCP: Listed {len(snippet_list)} snippets" + (f" for project '{project_id}'" if project_id else ""))
+        return json.dumps(result)
+        
+    except json.JSONDecodeError:
+        return json.dumps({"error": "Invalid JSON received in context"})
+    except Exception as e:
+        logging.error(f"Error in mcp_list_snippets: {str(e)}")
+        return json.dumps({"error": str(e)})
+
+
+# MCP tool for deleting snippets
+@bp.generic_trigger(
+    arg_name="context",
+    type="mcpToolTrigger",
+    toolName="delete_snippet",
+    description="Deletes a saved code snippet by its unique name. Provide 'snippetname' to identify the snippet to delete. Optionally provide 'projectid' to help locate the snippet.",
+    toolProperties=tool_properties_delete_snippet_json,
+)
+async def mcp_delete_snippet(context) -> str:
+    """
+    MCP tool to delete a code snippet.
+    
+    This tool enables AI assistants to remove snippets that are no longer needed.
+    """
+    try:
+        # Parse the context JSON string to extract the arguments
+        mcp_data = json.loads(context)
+        args = mcp_data.get("arguments", {})
+        
+        # Extract required parameters
+        snippet_name = args.get(_SNIPPET_NAME_PROPERTY_NAME, "")
+        project_id = args.get(_PROJECT_ID_PROPERTY_NAME, "")
+        
+        if not snippet_name:
+            return json.dumps({"error": "snippetname parameter is required for deletion"})
+        
+        # Try to find the snippet first
+        existing_snippet = await cosmos_ops.get_snippet_by_id(snippet_name)
+        
+        if not existing_snippet:
+            return json.dumps({"error": f"Snippet '{snippet_name}' not found"})
+        
+        # Check project_id filter if provided
+        if project_id and existing_snippet.get("projectId") != project_id:
+            return json.dumps({"error": f"Snippet '{snippet_name}' not found in project '{project_id}'"})
+        
+        # For now, return a message that deletion is not implemented
+        # TODO: Implement actual deletion functionality in cosmos_ops
+        result = {
+            "success": False,
+            "message": f"Delete functionality not yet implemented. Snippet '{snippet_name}' exists but cannot be deleted.",
+            "snippet_info": {
+                "name": snippet_name,
+                "projectId": existing_snippet.get("projectId", "")
+            }
+        }
+        
+        logging.info(f"MCP: Delete requested for snippet '{snippet_name}' (not implemented)")
+        return json.dumps(result)
+        
+    except json.JSONDecodeError:
+        return json.dumps({"error": "Invalid JSON received in context"})
+    except Exception as e:
+        logging.error(f"Error in mcp_delete_snippet: {str(e)}")
         return json.dumps({"error": str(e)})

@@ -30,8 +30,6 @@ async def test_load_snippet_activity_not_found(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_review_docs_tests_flow_mock(monkeypatch):
-    os.environ["DISABLE_OPENAI"] = "1"
-
     review = await code_review_agent_activity({
         "code": "def f():\n    print(1)",
         "correlationId": "c1"

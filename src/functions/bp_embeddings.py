@@ -62,22 +62,20 @@ def embeddings_orchestrator(context: df.DurableOrchestrationContext) -> Generato
 
 
 @bp.activity_trigger(input_name="data")
-async def embed_chunk_activity(data: str) -> list[float]:
+async def embed_chunk_activity(data: dict) -> list[float]:
     """Generate an embedding for a text chunk (async)."""
     from azure.identity.aio import DefaultAzureCredential
     from azure.ai.projects.aio import AIProjectClient
     # Prefer async inference client sourced from project
 
     # Handle both dict (from tests) and JSON string (from runtime)
-    if isinstance(data, dict):
-        data_dict = data
-    else:
+    if not isinstance(data, dict):
         try:
-            data_dict = json.loads(data) if data else {}
-        except json.JSONDecodeError:
-            data_dict = {}
+            data = json.loads(data) if data else {}
+        except (json.JSONDecodeError, TypeError):
+            data = {}
     
-    text: str = data_dict.get("text", "")
+    text: str = data.get("text", "")
     if not text:
         return []
 
@@ -110,21 +108,19 @@ async def embed_chunk_activity(data: str) -> list[float]:
 
 
 @bp.activity_trigger(input_name="data")
-async def persist_snippet_activity(data: str) -> dict:
+async def persist_snippet_activity(data: dict) -> dict:
     """Persist snippet + embedding to Cosmos (async)."""
     # Handle both dict (from tests) and JSON string (from runtime)
-    if isinstance(data, dict):
-        data_dict = data
-    else:
+    if not isinstance(data, dict):
         try:
-            data_dict = json.loads(data) if data else {}
-        except json.JSONDecodeError:
-            data_dict = {}
+            data = json.loads(data) if data else {}
+        except (json.JSONDecodeError, TypeError):
+            data = {}
     
-    name: str = data_dict.get("name", "unnamed")
-    project_id: str = data_dict.get("projectId", "default-project")
-    code: str = data_dict.get("code", "")
-    embedding: list[float] = data_dict.get("embedding", [])
+    name: str = data.get("name", "unnamed")
+    project_id: str = data.get("projectId", "default-project")
+    code: str = data.get("code", "")
+    embedding: list[float] = data.get("embedding", [])
 
     try:
         result = await cosmos_ops.upsert_document(

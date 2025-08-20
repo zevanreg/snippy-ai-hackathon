@@ -3,3 +3,8 @@ line-length = 120
 target-version = "py311"
 lint.select = ["E", "F", "I", "UP", "A"]
 lint.ignore = ["D203"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
