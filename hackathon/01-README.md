@@ -4,7 +4,7 @@ Build an enterprise-grade AI-powered knowledge assistant using Azure Functions, 
 
 ### 🎯 Format
 - **Duration**: 6 hours total
-- **Teams**: 5 people per team
+- **Teams**: 5/6 people per team
 - **Tech Stack**: Azure Functions (Python 3.11), Cosmos DB, Azure OpenAI, Durable Functions
 
 ### 🏆 Levels Overview
@@ -37,19 +37,20 @@ Build an enterprise-grade AI-powered knowledge assistant using Azure Functions, 
 
 ### 🎖️ Minimum Viable Product
 Complete **Levels 1-5** for a fully functional AI knowledge assistant with:
-- Document ingestion and storage
+- Code Snippet ingestion and storage
 - AI-powered semantic search
 - Question answering with citations
 - Automated processing and monitoring
 
 ## 📋 Technical Requirements
 
-- **Python 3.11** with Azure Functions v2 blueprint model
-- **Durable orchestrators**: `def` (sync) with `yield` + `context.task_all(...)`
-- **Activity functions**: `async def` returning JSON-serializable data
-- **Cloud-first deployment**: Use `azd up` for all development and testing
-- **No local development**: All testing against deployed Azure resources
-- **Security**: No secrets in code, use environment variables and Managed Identity
+- **Azure subscription** use your respective Microsoft Non-Production (fdpo.onmicrosoft.com) subscription.
+- **Python 3.11** with Azure Functions v2 blueprint model.
+- **Durable orchestrators**: `def` (sync) with `yield` + `context.task_all(...)`.
+- **Activity functions**: `async def` returning JSON-serializable data.
+- **Cloud-first deployment**: Use `azd up` for all development and testing.
+- **No local development**: All testing against deployed Azure resources.
+- **Security**: No secrets in code, use environment variables and Managed Identity.
 
 ## 🚀 Quick Start
 

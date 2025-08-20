@@ -16,7 +16,8 @@
         "ms-azuretools.vscode-azurefunctions",
         "ms-vscode.powershell",
         "bierner.markdown-mermaid",
-        "humao.rest-client"
+        "humao.rest-client",
+        "ms-azuretools.vscode-containers"
       ]
     }
   },
