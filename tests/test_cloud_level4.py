@@ -26,8 +26,8 @@ import requests
 from azure.storage.blob import BlobServiceClient
 from azure.core.exceptions import ResourceExistsError
 
-FUNCTION_APP_URL = os.getenv("FUNCTION_APP_URL", "https://func-s2wsaefugjcvy.azurewebsites.net")
-FUNCTION_KEY = os.getenv("FUNCTION_KEY", "Y36BWOh9zsGA19BxFbF6SEZb7-_-4dV_NLRmdh3nr40mAzFu6oq2Tg==")
+FUNCTION_APP_URL = os.getenv("FUNCTION_APP_URL", "https://your-function-app.azurewebsites.net")
+FUNCTION_KEY = os.getenv("FUNCTION_KEY", "your-function-key-here")
 
 # Configure logging
 logging.basicConfig(
