@@ -12,8 +12,8 @@ import os
 
 # Azure Function App URL from deployment
 # Replace these with your actual deployment values
-FUNCTION_APP_URL = "https://your-function-app.azurewebsites.net"
-FUNCTION_KEY = "your-function-key-here"
+FUNCTION_APP_URL = "https://func-s2wsaefugjcvy.azurewebsites.net"
+FUNCTION_KEY = os.environ.get("FUNCTION_KEY", "YOUR_FUNCTION_KEY_HERE")
 
 def test_health_check():
     """Test the health check endpoint"""

@@ -22,8 +22,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Test configuration - replace with your deployed function app
-FUNCTION_APP_URL = "https://func-s2wsaefugjcvy.azurewebsites.net"
-FUNCTION_KEY = os.environ.get("FUNCTION_KEY", "YOUR_FUNCTION_KEY_HERE")
+FUNCTION_APP_URL = os.getenv("FUNCTION_APP_URL", "https://your-function-app.azurewebsites.net")
+FUNCTION_KEY = os.getenv("FUNCTION_KEY", "your-function-key-here")
 PROJECT_ID = "test-level3-vectors"
 
 # Headers for authenticated requests
