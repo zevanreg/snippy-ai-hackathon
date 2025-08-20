@@ -93,14 +93,9 @@ The system uses these environment variables (already configured in infrastructur
 - `CHUNK_SIZE` - Size of text chunks (default: 800 characters)
 - `EMBEDDING_MODEL_DEPLOYMENT_NAME` - Azure OpenAI embedding model
 - `PROJECT_CONNECTION_STRING` - Azure AI Projects connection string
-- `DISABLE_OPENAI` - Set to "1" for mock mode during testing
 
 #### Error Handling Patterns:
 ```python
-# Mock mode for testing
-if os.environ.get("DISABLE_OPENAI") == "1":
-    return [0.0, 1.0, 0.0]  # Deterministic mock embedding
-
 # Graceful degradation
 try:
     # Real Azure OpenAI call

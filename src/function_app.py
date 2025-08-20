@@ -49,15 +49,15 @@ except ImportError as e:
 except Exception as e:
     logging.error(f"❌ Query blueprint registration failed: {e}")
 
-# Embeddings functionality - temporarily disabled due to SDK issues
-# try:
-#     from functions import bp_embeddings
-#     app.register_blueprint(bp_embeddings.bp)
-#     logging.info("✅ Embeddings blueprint registered successfully")
-# except ImportError as e:
-#     logging.error(f"❌ Import error for Embeddings blueprint: {e}")
-# except Exception as e:
-#     logging.error(f"❌ Embeddings blueprint registration failed: {e}")
+# Embeddings functionality - now enabled for Level 2
+try:
+    from functions import bp_embeddings
+    app.register_blueprint(bp_embeddings.bp)
+    logging.info("✅ Embeddings blueprint registered successfully")
+except ImportError as e:
+    logging.error(f"❌ Import error for Embeddings blueprint: {e}")
+except Exception as e:
+    logging.error(f"❌ Embeddings blueprint registration failed: {e}")
 
 # Ingestion functionality - temporarily disabled
 # try:

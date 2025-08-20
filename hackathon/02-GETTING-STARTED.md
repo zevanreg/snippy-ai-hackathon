@@ -13,13 +13,10 @@ Welcome to the Snippy AI Hackathon! This guide will walk you through everything 
 
 Build a progressive AI knowledge assistant through 6 levels:
 
-### Core Foundation (Required - 6 hours)
 - **Level 1** → Foundation API + Persistence
 - **Level 2** → Durable Orchestration: Fan-out Embeddings  
 - **Level 3** → Vector Search + Q&A with Citations
 - **Level 4** → Event-driven Ingestion + Observability
-
-### Advanced Enterprise (Stretch Goals - 2 hours)
 - **Level 5** → Multi-Agent Orchestration
 - **Level 6** → Zero Trust Network Security
 
@@ -53,122 +50,6 @@ azd up
 - Application Insights
 - All necessary security and networking
 
-### Step 3: Verify Deployment
-```bash
-# Test your deployed endpoint
-curl https://your-function-app.azurewebsites.net/api/health
-
-# Expected response:
-# {"status": "ok", "timestamp": "2025-08-18T..."}
-```
-
-## 🧪 Testing Your Setup
-
-### Basic Functionality Test
-```bash
-# Upload a test document to trigger ingestion
-echo "# Test Document
-This is a sample document for testing the AI knowledge assistant." > test-doc.md
-
-# Upload to Azure Storage (triggers automatic processing)
-az storage blob upload \
-  --file test-doc.md \
-  --container-name snippet-input \
-  --name test-doc.md \
-  --account-name your-storage-account
-```
-
-### Query the Knowledge Base
-```bash
-# Test the Q&A functionality
-curl -X POST https://your-function-app.azurewebsites.net/api/query \
-  -H "Content-Type: application/json" \
-  -d '{
-    "query": "What is this document about?",
-    "max_results": 3
-  }'
-```
-
-## 📚 Level-by-Level Progression
-
-### 🔧 Level 1: Foundation API + Persistence
-**Goal**: Create basic CRUD operations for managing code snippets and documents.
-
-**Key Deliverables**:
-- Document upload/download endpoints
-- Metadata storage in Cosmos DB
-- Basic search functionality
-
-**Acceptance Criteria**: 
-- ✅ Can store and retrieve documents
-- ✅ Basic metadata search works
-- ✅ All tests pass
-
-### ⚡ Level 2: Durable Orchestration
-**Goal**: Implement fan-out pattern for processing documents with AI embeddings.
-
-**Key Deliverables**:
-- Durable Functions orchestrator
-- Parallel chunk processing
-- Embedding generation with Azure OpenAI
-
-**Acceptance Criteria**:
-- ✅ Documents automatically chunked
-- ✅ Embeddings generated for all chunks
-- ✅ Orchestration handles failures gracefully
-
-### 🔍 Level 3: Vector Search + Q&A
-**Goal**: Enable semantic search and AI-powered question answering.
-
-**Key Deliverables**:
-- Vector similarity search
-- RAG (Retrieval-Augmented Generation)
-- Citation tracking
-
-**Acceptance Criteria**:
-- ✅ Semantic search returns relevant documents
-- ✅ AI generates accurate answers with citations
-- ✅ Handles complex queries effectively
-
-### 📊 Level 4: Event-driven Ingestion + Observability
-**Goal**: Automated document processing with comprehensive monitoring.
-
-**Key Deliverables**:
-- Blob storage trigger
-- Application Insights integration
-- Error handling and retry logic
-
-**Acceptance Criteria**:
-- ✅ Documents auto-processed on upload
-- ✅ Comprehensive telemetry and logging
-- ✅ Resilient to failures and retries
-
-### 🤖 Level 5: Multi-Agent Orchestration
-**Goal**: Specialized AI agents collaborate on complex tasks.
-
-**Key Deliverables**:
-- Code reviewer agent
-- Documentation agent  
-- Testing agent
-- Agent communication framework
-
-**Acceptance Criteria**:
-- ✅ Agents work together on code analysis
-- ✅ Generates comprehensive code reviews
-- ✅ Produces documentation and tests
-
-### 🔒 Level 6: Zero Trust Security
-**Goal**: Enterprise-grade security with private networking.
-
-**Key Deliverables**:
-- Private endpoints for all services
-- Managed identity authentication
-- Network isolation and monitoring
-
-**Acceptance Criteria**:
-- ✅ No public internet access from functions
-- ✅ All communication via private networks
-- ✅ Complete security audit trail
 
 ## 🛡️ Technical Requirements
 
@@ -190,18 +71,14 @@ curl -X POST https://your-function-app.azurewebsites.net/api/query \
 ## 🎯 Winning Strategy
 
 ### For Teams Aiming for Completion (Recommended)
-1. **Hours 1-6**: Focus intensely on Levels 1-4
-2. **Hours 7-8**: Attempt Levels 5-6 if time permits
+1. **Hours 1-5**: Focus intensely on Levels 1-5
+2. **Hours 5-6**: Attempt Level 6 if time permits
 3. **Key Success Factor**: Solid implementation of core features
 
 ### For Advanced Teams
 1. **Parallel Development**: Split team across levels 3-4 and 5-6
 2. **Infrastructure First**: Ensure robust foundation
 3. **Integration Focus**: Ensure all components work together
-
-### Minimum Viable Product
-- Complete Levels 1-4 for a fully functional AI knowledge assistant
-- This alone provides significant business value
 
 ## 🔧 Development Workflow
 
@@ -221,7 +98,7 @@ cd src
 python -m pytest tests/ -v
 
 # Test specific level
-python -m pytest tests/test_level1_endpoints.py -v
+python -m pytest tests/test_cloud_level1.py -v
 ```
 
 ### Monitoring and Debugging
@@ -309,7 +186,7 @@ az account show --query "{subscription:id, tenant:tenantId}"
 - [ ] Error handling and retry logic
 - [ ] All Level 4 tests passing
 
-### Level 5: Multi-Agent (Stretch) ✅
+### Level 5: Multi-Agent ✅
 - [ ] Multiple AI agents collaborating
 - [ ] Agent communication framework
 - [ ] Complex task orchestration
@@ -323,7 +200,7 @@ az account show --query "{subscription:id, tenant:tenantId}"
 
 ## 🚀 Ready to Start?
 
-1. **Complete the environment setup** (Steps 1-3 above)
+1. **Complete the environment setup** (Steps 1 and 2 above)
 2. **Open Level 1 documentation** (`level-1.md`)
 3. **Start coding** your AI knowledge assistant!
 

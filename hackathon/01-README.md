@@ -2,23 +2,6 @@
 
 Build an enterprise-grade AI-powered knowledge assistant using Azure Functions, Cosmos DB vector search, Azure OpenAI, and Zero Trust security.
 
-## 🚀 Quick Start
-
-**👉 [Read the complete Getting Started Guide](./GETTING-STARTED.md)**
-
-```bash
-# 1. Authenticate
-azd auth login
-
-# 2. Deploy everything
-azd env new "your-team-name"
-azd up
-
-# 3. Start building!
-```
-
-## 📊 Challenge Structure
-
 ### 🎯 Format
 - **Duration**: 6 hours total
 - **Teams**: 5 people per team
@@ -26,7 +9,7 @@ azd up
 
 ### 🏆 Levels Overview
 
-#### Core Foundation (Required - 6 hours)
+#### Core Foundation
 | Level | Focus | Key Deliverable |
 |-------|--------|-----------------|
 | **Level 1** | Foundation API + Persistence | CRUD operations, metadata storage |
@@ -34,7 +17,7 @@ azd up
 | **Level 3** | Vector Search + Q&A | Semantic search, RAG with citations |
 | **Level 4** | Event-driven + Observability | Auto-ingestion, monitoring, resilience |
 
-#### Advanced Enterprise (Stretch Goals - 2 hours)
+#### Advanced Enterprise
 | Level | Focus | Key Deliverable |
 |-------|--------|-----------------|
 | **Level 5** | Multi-Agent Orchestration | AI agents collaborating on complex tasks |
@@ -43,8 +26,8 @@ azd up
 ## 🎯 Winning Strategy
 
 ### ✅ Teams Aiming for Completion
-1. **Focus on Levels 1-4 first** (4 hours)
-2. **Attempt Levels 5-6** if time permits (2 hours)
+1. **Focus on Levels 1-5 first**
+2. **Attempt Levels 6** if time permits
 3. **Prioritize solid implementation** over feature breadth
 
 ### 🚀 Advanced Teams
@@ -53,7 +36,7 @@ azd up
 3. **Focus on architecture** and scalability
 
 ### 🎖️ Minimum Viable Product
-Complete **Levels 1-4** for a fully functional AI knowledge assistant with:
+Complete **Levels 1-5** for a fully functional AI knowledge assistant with:
 - Document ingestion and storage
 - AI-powered semantic search
 - Question answering with citations
@@ -68,10 +51,8 @@ Complete **Levels 1-4** for a fully functional AI knowledge assistant with:
 - **No local development**: All testing against deployed Azure resources
 - **Security**: No secrets in code, use environment variables and Managed Identity
 
-## 🎉 Ready to Build?
+## 🚀 Quick Start
 
-1. **[Follow the Getting Started Guide](./GETTING-STARTED.md)** for complete setup instructions
-2. **Open Level 1** (`level-1.md`) for your first challenge
-3. **Start coding** your AI knowledge assistant!
+**👉 [Read the complete Getting Started Guide](./02-GETTING-STARTED.md)**
 
 **Good luck, and happy hacking!** 🚀

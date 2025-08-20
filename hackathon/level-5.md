@@ -488,13 +488,12 @@ curl -X POST https://your-function-app.azurewebsites.net/api/orchestrators/multi
 
 ## 🚀 Deployment Options
 
-### Option 1: Local Development with Mock AI Services
+### Option 1: Local Development Setup
 
-1. **Configure mock mode:**
+1. **Configure local development:**
    ```json
    {
      "Values": {
-       "DISABLE_OPENAI": "1",
        "MAX_AGENT_ITERATIONS": "3",
        "AGENT_TOKEN_LIMIT": "4000",
        "ENABLE_CONTENT_FILTER": "1",
