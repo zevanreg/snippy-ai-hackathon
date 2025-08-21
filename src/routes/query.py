@@ -6,6 +6,7 @@ import logging
 import os
 import re
 from typing import Any, Sequence
+from urllib.parse import urlparse
 
 import azure.functions as func
 from agents.tools import vector_search as vs
@@ -84,11 +85,9 @@ async def _chat_complete(system: str, user: str) -> tuple[str, dict]:
     from azure.ai.inference.aio import ChatCompletionsClient
 
     model = os.environ.get("AGENTS_MODEL_DEPLOYMENT_NAME") or os.environ.get("OPENAI_CHAT_MODEL")
-    
-    # Try Azure OpenAI endpoint first
-    endpoint = os.environ.get("AZURE_OPENAI_ENDPOINT")
-    if not model or not endpoint:
-        return ("Model or endpoint not configured.", {"error": True})
+
+    project_endpoint = os.environ["PROJECT_CONNECTION_STRING"]
+    inference_endpoint = f"https://{urlparse(project_endpoint).netloc}/models"
 
     messages: list[ChatRequestMessage] = [
         SystemMessage(content=system),
@@ -97,7 +96,14 @@ async def _chat_complete(system: str, user: str) -> tuple[str, dict]:
 
     try:
         cred = DefaultAzureCredential()
-        async with ChatCompletionsClient(endpoint=endpoint, credential=cred) as client:
+        logging.info("Using Azure OpenAI endpoint: %s", endpoint)
+        logging.info("Using model: %s", model)
+        
+        async with ChatCompletionsClient(
+            endpoint=inference_endpoint,
+            credential=DefaultAzureCredential(),
+            credential_scopes=["https://ai.azure.com/.default"],
+        ) as client:
             rsp = await client.complete(
                 model=model,
                 messages=messages,
