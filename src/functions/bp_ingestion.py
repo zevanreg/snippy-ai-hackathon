@@ -13,7 +13,8 @@ from datetime import datetime
 
 import azure.functions as func
 import azure.durable_functions as df
-from azure.storage.blob import BlobServiceClient
+from azure.storage.blob import BlobServiceClient, BlobClient
+import azurefunctions.extensions.bindings.blob as blob
 
 bp = func.Blueprint()
 
@@ -22,68 +23,28 @@ MAX_BLOB_MB = int(os.environ.get("MAX_BLOB_MB", "2"))
 STORAGE_CONNECTION = os.environ.get("AzureWebJobsStorage")
 
 
-@bp.schedule(
-    schedule="0 */1 * * * *",  # Every minute
-    arg_name="timer",
-    run_on_startup=False,
-    use_monitor=True
-)
+@bp.blob_trigger(arg_name="myblob", 
+                  path=INGESTION_CONTAINER,
+                  connection="AzureWebJobsStorage")
 @bp.durable_client_input(client_name="starter")
-async def poll_ingestion_container(timer: func.TimerRequest, starter: df.DurableOrchestrationClient) -> None:
+async def poll_ingestion_container(myblob: blob.BlobClient, starter: df.DurableOrchestrationClient) -> None:
     """Poll blob storage for new files to ingest."""
-    if not STORAGE_CONNECTION:
-        logging.warning("No storage connection configured for ingestion polling")
-        return
+    logging.info("Blob trigger fired for blob: %s", myblob.blob_name)
 
     try:
-        # Connect to blob storage
-        blob_service_client = BlobServiceClient.from_connection_string(STORAGE_CONNECTION)
-        container_client = blob_service_client.get_container_client(INGESTION_CONTAINER)
-        
-        # Check if container exists
-        try:
-            container_client.get_container_properties()
-        except Exception:
-            logging.info("Container %s does not exist, creating it", INGESTION_CONTAINER)
-            try:
-                blob_service_client.create_container(INGESTION_CONTAINER)
-            except Exception as e:
-                logging.error("Failed to create container %s: %s", INGESTION_CONTAINER, e)
-                return
-        
-        # List blobs in container
-        blobs = container_client.list_blobs()
-        processed_count = 0
-        
-        for blob in blobs:
-            try:
-                await process_blob(blob.name, container_client, starter)
-                processed_count += 1
-                
-                # Rate limiting - don't process too many at once
-                if processed_count >= 10:
-                    logging.info("Processed 10 files, will continue in next cycle")
-                    break
-                    
-            except Exception as e:
-                logging.error("Failed to process blob %s: %s", blob.name, e)
-        
-        if processed_count > 0:
-            logging.info("Ingestion polling processed %d files", processed_count)
-        
+        await process_blob(myblob.blob_name, myblob, starter)
     except Exception as e:
-        logging.error("Ingestion polling failed: %s", e, exc_info=True)
+        logging.error("Failed to process blob %s: %s", myblob.name, e)
 
 
-async def process_blob(blob_name: str, container_client, starter: df.DurableOrchestrationClient) -> None:
+# async def process_blob(blob_name: str, container_client, starter: df.DurableOrchestrationClient) -> None:
+async def process_blob(blob_name: str, blob_client : BlobClient, starter: df.DurableOrchestrationClient) -> None:
     """Process a single blob file."""
     try:
         logging.info(f"Processing blob: {blob_name}")
-        
-        # Get blob client and download content
-        blob_client = container_client.get_blob_client(blob_name)
         blob_data = blob_client.download_blob()
         content = blob_data.readall()
+        logging.info(f"Blob {blob_name} downloaded successfully")
         
         # Check blob size
         blob_length = len(content)
