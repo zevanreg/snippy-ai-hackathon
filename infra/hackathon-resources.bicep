@@ -65,6 +65,7 @@ resource cosmosAccount 'Microsoft.DocumentDB/databaseAccounts@2025-04-15' = {
         name: 'EnableNoSQLVectorSearch'
       }
     ]
+    disableLocalAuth: false
   }
   tags: tags
 }
