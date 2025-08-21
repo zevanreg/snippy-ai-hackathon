@@ -14,7 +14,7 @@ A robust HTTP API that can save, retrieve, and manage code snippets with proper 
 ### Step 1: Understanding the Architecture
 Before coding, familiarize yourself with the existing structure:
 - `src/function_app.py` - Main application entry point with health check
-- `src/functions/bp_snippy.py` - Blueprint with snippet operations (already implemented!)
+- `src/functions/bp_snippy.py` - Primary Python code file which defines the Snippy MCP tool functionality with snippet operations (already implemented!)
 - `src/data/cosmos_ops.py` - Database operations helper
 - `src/routes/query.py` - Query functionality (added in later levels)
 
@@ -26,7 +26,7 @@ Before coding, familiarize yourself with the existing structure:
    - Examine the `get_snippet` function (GET /snippets/{snippet_name})
    - Understand how they use `cosmos_ops.py` for database operations
 
-2. **Ensure proper validation** - Check that inputs are validated:
+2. **Ensure proper validation** - Review the code that validate inputs in each function:
    ```python
    # Example validation pattern to look for:
    if not name or not code:
@@ -175,7 +175,7 @@ with patch('data.cosmos_ops.upsert_document') as mock_upsert:
    export FUNCTION_URL="https://your-function-app.azurewebsites.net"
    
    # Health check
-   curl $FUNCTION_URL/api/health
+   curl $FUNCTION_URL/api/health -v
    
    # Save a snippet
    curl -X POST $FUNCTION_URL/api/snippets/hello \
@@ -184,13 +184,6 @@ with patch('data.cosmos_ops.upsert_document') as mock_upsert:
    
    # Get the snippet
    curl $FUNCTION_URL/api/snippets/hello
-   ```
-
-3. **Run tests against deployed functions:**
-   ```bash
-   # Update test configuration to use deployed endpoints
-   export FUNCTION_APP_URL="https://your-function-app.azurewebsites.net"
-   python -m pytest tests/test_level1_endpoints.py -v
    ```
 
 ## 💡 Pro Tips from Your Mentor
