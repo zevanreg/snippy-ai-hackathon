@@ -113,16 +113,16 @@ def multi_agent_orchestrator(context: df.DurableOrchestrationContext) -> Generat
     return result
 
 
-@bp.activity_trigger(input_name="data")
-async def load_snippet_activity(data: dict) -> dict:
+@bp.activity_trigger(input_name="snippet")
+async def load_snippet_activity(snippet: dict) -> dict:
     """Load a snippet by id from Cosmos (async)."""
-    if not isinstance(data, dict):
+    if not isinstance(snippet, dict):
         try:
-            data = json.loads(data) if data else {}
+            snippet = json.loads(snippet) if snippet else {}
         except (json.JSONDecodeError, TypeError):
-            data = {}
+            snippet = {}
     
-    name: str = data.get("name", "")
+    name: str = snippet.get("name", "")
     if not name:
         return {}
     try:
@@ -133,17 +133,17 @@ async def load_snippet_activity(data: dict) -> dict:
         return {}
 
 
-@bp.activity_trigger(input_name="data")
-async def code_review_agent_activity(data: dict) -> dict:
+@bp.activity_trigger(input_name="codeData")
+async def code_review_agent_activity(codeData: dict) -> dict:
     """Analyze code for issues using Azure AI agent; return structured findings (async)."""
-    if not isinstance(data, dict):
+    if not isinstance(codeData, dict):
         try:
-            data = json.loads(data) if data else {}
+            codeData = json.loads(codeData) if codeData else {}
         except (json.JSONDecodeError, TypeError):
-            data = {}
+            codeData = {}
     
-    code: str = data.get("code", "")
-    corr: str = data.get("correlationId", "")
+    code: str = codeData.get("code", "")
+    corr: str = codeData.get("correlationId", "")
     
     # Check for mock mode
     if os.environ.get("DISABLE_OPENAI") == "1":
@@ -261,18 +261,18 @@ Be thorough but concise in your analysis.
         return {"summary": f"Error: {str(e)}", "issues": [], "correlationId": corr}
 
 
-@bp.activity_trigger(input_name="data")
-async def documentation_agent_activity(data: dict) -> dict:
+@bp.activity_trigger(input_name="docData")
+async def documentation_agent_activity(docData: dict) -> dict:
     """Generate docs from code and review findings using Azure AI agent (async)."""
-    if not isinstance(data, dict):
+    if not isinstance(docData, dict):
         try:
-            data = json.loads(data) if data else {}
+            docData = json.loads(docData) if docData else {}
         except (json.JSONDecodeError, TypeError):
-            data = {}
+            docData = {}
     
-    code: str = data.get("code", "")
-    review: dict = data.get("review", {})
-    corr: str = data.get("correlationId", "")
+    code: str = docData.get("code", "")
+    review: dict = docData.get("review", {})
+    corr: str = docData.get("correlationId", "")
 
     # Check for mock mode
     if os.environ.get("DISABLE_OPENAI") == "1":
@@ -386,18 +386,18 @@ Review Issues:
         return {"markdown": f"Error generating documentation: {str(e)}", "size": len(code), "correlationId": corr}
 
 
-@bp.activity_trigger(input_name="data")
-async def testing_agent_activity(data: dict) -> dict:
+@bp.activity_trigger(input_name="testData")
+async def testing_agent_activity(testData: dict) -> dict:
     """Generate unit tests based on code and review using Azure AI agent (async)."""
-    if not isinstance(data, dict):
+    if not isinstance(testData, dict):
         try:
-            data = json.loads(data) if data else {}
+            testData = json.loads(testData) if testData else {}
         except (json.JSONDecodeError, TypeError):
-            data = {}
+            testData = {}
     
-    code: str = data.get("code", "")
-    review: dict = data.get("review", {})
-    corr: str = data.get("correlationId", "")
+    code: str = testData.get("code", "")
+    review: dict = testData.get("review", {})
+    corr: str = testData.get("correlationId", "")
 
     # Check for mock mode
     if os.environ.get("DISABLE_OPENAI") == "1":

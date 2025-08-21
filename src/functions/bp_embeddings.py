@@ -10,6 +10,7 @@ import json
 import logging
 import os
 from typing import Generator, Any
+from urllib.parse import urlparse
 
 import azure.functions as func
 import azure.durable_functions as df
@@ -61,66 +62,82 @@ def embeddings_orchestrator(context: df.DurableOrchestrationContext) -> Generato
     return result
 
 
-@bp.activity_trigger(input_name="data")
-async def embed_chunk_activity(data: dict) -> list[float]:
+@bp.activity_trigger(input_name="chunk")
+async def embed_chunk_activity(chunk : dict) -> list[float]:
     """Generate an embedding for a text chunk (async)."""
     from azure.identity.aio import DefaultAzureCredential
     from azure.ai.projects.aio import AIProjectClient
+    from azure.ai.inference.aio import EmbeddingsClient
+
     # Prefer async inference client sourced from project
+    logging.info("Embedding chunk with async AIProjectClient")
 
     # Handle both dict (from tests) and JSON string (from runtime)
-    if not isinstance(data, dict):
+    if not isinstance(chunk, dict):
         try:
-            data = json.loads(data) if data else {}
+            chunk = json.loads(chunk) if chunk else {}
         except (json.JSONDecodeError, TypeError):
-            data = {}
-    
-    text: str = data.get("text", "")
+            chunk = {}
+
+    text: str = chunk.get("text", "")
     if not text:
         return []
 
     # For real OpenAI mode, require environment variables
-    model = os.environ.get("EMBEDDING_MODEL_DEPLOYMENT_NAME")
+    model_name = os.environ.get("EMBEDDING_MODEL_DEPLOYMENT_NAME")
     conn = os.environ.get("PROJECT_CONNECTION_STRING")
-    if not model or not conn:
+    if not model_name or not conn:
         logging.warning("Missing OpenAI config, falling back to mock embedding")
         return [0.0, 1.0, 0.0]
 
     try:
-        # Extract endpoint from connection string (Endpoint=...;Project=...;Key=...)
-        import re
-        match = re.search(r"Endpoint=([^;]+)", conn)
-        if not match:
-            logging.error("Invalid PROJECT_CONNECTION_STRING: missing Endpoint component")
-            return []
-        endpoint = match.group(1)
+        endpoint = f"https://{urlparse(conn).netloc}/models"
 
-        async with DefaultAzureCredential() as cred:
-            from azure.ai.inference.aio import EmbeddingsClient
-            async with EmbeddingsClient(endpoint=endpoint, credential=cred) as embeds:
-                rsp = await embeds.embed(model=model, input=[text])
-                if not rsp.data or not rsp.data[0].embedding:
-                    return []
-                return [float(x) for x in rsp.data[0].embedding]
+        async with EmbeddingsClient(
+            endpoint=endpoint,
+            credential=DefaultAzureCredential(),
+            credential_scopes=["https://ai.azure.com/.default"],
+        ) as embeddings_client:
+            response = await embeddings_client.embed(
+                model=model_name,
+                input=[text]
+            )
+            
+            # Ensure the embedding was generated successfully
+            if not response.data or not response.data[0].embedding:
+                logging.error("Failed to generate embedding. Response data: %s", response)
+                raise ValueError("Failed to generate embedding.")
+            
+            query_vector = [float(x) for x in response.data[0].embedding]
+            return query_vector
+            
+
+        # async with DefaultAzureCredential() as cred:
+        #     from azure.ai.inference.aio import EmbeddingsClient
+        #     async with EmbeddingsClient(endpoint=endpoint, credential=cred) as embeds:
+        #         rsp = await embeds.embed(model=model_name, input=[text])
+        #         if not rsp.data or not rsp.data[0].embedding:
+        #             return []
+        #         return [float(x) for x in rsp.data[0].embedding]
     except Exception as e:
         logging.error("Embedding failed: %s", e, exc_info=True)
         return []
 
 
-@bp.activity_trigger(input_name="data")
-async def persist_snippet_activity(data: dict) -> dict:
+@bp.activity_trigger(input_name="snippet")
+async def persist_snippet_activity(snippet: dict) -> dict:
     """Persist snippet + embedding to Cosmos (async)."""
     # Handle both dict (from tests) and JSON string (from runtime)
-    if not isinstance(data, dict):
+    if not isinstance(snippet, dict):
         try:
-            data = json.loads(data) if data else {}
+            snippet = json.loads(snippet) if snippet else {}
         except (json.JSONDecodeError, TypeError):
-            data = {}
+            snippet = {}
     
-    name: str = data.get("name", "unnamed")
-    project_id: str = data.get("projectId", "default-project")
-    code: str = data.get("code", "")
-    embedding: list[float] = data.get("embedding", [])
+    name: str = snippet.get("name", "unnamed")
+    project_id: str = snippet.get("projectId", "default-project")
+    code: str = snippet.get("code", "")
+    embedding: list[float] = snippet.get("embedding", [])
 
     try:
         result = await cosmos_ops.upsert_document(
