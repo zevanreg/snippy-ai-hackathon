@@ -31,6 +31,10 @@ Content-Type: application/json
 ### Get a snippet by name
 GET http://localhost:7071/api/snippets/test-snippet
 
+
+### Get a snippet by projectId
+GET http://localhost:7071/api/snippets?projectId=test-project
+
 ### Complex Snippet Operations
 
 ### Save a complex snippet with projectId
