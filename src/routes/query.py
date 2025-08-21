@@ -95,10 +95,6 @@ async def _chat_complete(system: str, user: str) -> tuple[str, dict]:
     ]
 
     try:
-        cred = DefaultAzureCredential()
-        logging.info("Using Azure OpenAI endpoint: %s", endpoint)
-        logging.info("Using model: %s", model)
-        
         async with ChatCompletionsClient(
             endpoint=inference_endpoint,
             credential=DefaultAzureCredential(),
