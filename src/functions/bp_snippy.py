@@ -282,9 +282,16 @@ async def http_list_snippets(req: func.HttpRequest) -> func.HttpResponse:
     - Returns a list of all snippets from Cosmos DB or mock storage
     - Useful for browsing available snippets
     """
-    try:        
-        # Get all snippets from Cosmos DB
-        snippets = await cosmos_ops.list_all_snippets()
+    try:
+        projectId = req.params.get('projectId')
+        if(projectId):
+            logging.info(f"Listing snippets for project: {projectId}")
+            snippets = await cosmos_ops.list_snippets_by_project(projectId)
+        else:
+            # Get all snippets from Cosmos DB
+            logging.info("Listing all snippets")
+            snippets = await cosmos_ops.list_all_snippets()
+
         return func.HttpResponse(body=json.dumps(snippets), mimetype="application/json", status_code=200)
     except Exception as e:
         # General error handling

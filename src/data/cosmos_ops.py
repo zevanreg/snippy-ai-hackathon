@@ -211,6 +211,25 @@ async def list_all_snippets() -> list[dict]:
         logger.error(f"Error listing snippets: {str(e)}", exc_info=True)
         raise
 
+async def list_snippets_by_project(project_id: str) -> list[dict]:
+    """Gets all snippets for a given project from Cosmos DB."""
+    try:
+        logger.info(f"Retrieving snippets for project '{project_id}'")
+        container = await get_container()
+        sql = (
+            "SELECT c.id, c.name, c.projectId, c.code "
+            "FROM c WHERE c.type = 'code-snippet' AND c.projectId = @pid"
+        )
+        params = [{"name": "@pid", "value": project_id}]
+        logger.debug(f"Executing SQL query: {sql} with project_id={project_id}")
+        items_iterable = container.query_items(query=sql, parameters=params)
+        results = [item async for item in items_iterable]
+        logger.info(f"Found {len(results)} snippets for project '{project_id}'")
+        return results
+    except Exception as e:
+        logger.error(f"Error listing snippets by project: {str(e)}", exc_info=True)
+        raise
+
 # Retrieves a snippet by its id (partition key) from Cosmos DB
 # Returns the document or None if not found
 async def get_snippet_by_id(name: str) -> dict | None:
