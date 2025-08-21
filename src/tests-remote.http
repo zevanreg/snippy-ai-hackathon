@@ -97,6 +97,7 @@ Content-Type: application/json
 
 ### Start multi-agent code review for a snippet
 POST {{baseURL}}/api/orchestrators/multi-agent-review
+x-functions-key: {{functionKey}}
 Content-Type: application/json
 
 {
@@ -107,6 +108,7 @@ Content-Type: application/json
 
 ### Start multi-agent review for default project
 POST {{baseURL}}/api/orchestrators/multi-agent-review
+x-functions-key: {{functionKey}}
 Content-Type: application/json
 
 {
@@ -115,7 +117,8 @@ Content-Type: application/json
 
 ### Verification Steps for Multi-Agent Orchestrator
 # use instance ID from output of starter function above
-@instanceId = INSTANCEID FROM CALL ABOVE
+@instanceId = INSTANCEID_FROM_CALL_ABOVE
 
 ### Step 1: Check orchestration status (replace {instanceId} with actual ID from response above)
 GET {{baseURL}}/runtime/webhooks/durabletask/instances/{{instanceId}}
+x-functions-key: {{functionKey}}
