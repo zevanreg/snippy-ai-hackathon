@@ -5,44 +5,27 @@ Tests the deployed Azure Functions endpoints to validate Level 1 success criteri
 """
 
 import requests
-import json
+import pytest
 import sys
 import time
 import os
 
 # Azure Function App URL from deployment
 # Replace these with your actual deployment values
-FUNCTION_APP_URL = os.getenv("FUNCTION_APP_URL", "https://your-function-app.azurewebsites.net")
+FUNCTION_APP_URL = os.getenv("FUNCTION_APP_URL", "https://your-function-app.azurewebsites.net") 
 FUNCTION_KEY = os.getenv("FUNCTION_KEY", "your-function-key-here")
 
 def test_health_check():
     """Test the health check endpoint"""
-    print("🔄 Testing health check endpoint...")
+    response = requests.get(f"{FUNCTION_APP_URL}/api/health", timeout=30)
     
-    try:
-        response = requests.get(f"{FUNCTION_APP_URL}/api/health", timeout=30)
-        print(f"   Status Code: {response.status_code}")
-        
-        if response.status_code == 200:
-            data = response.json()
-            print(f"   Response: {data}")
-            if data.get("status") == "ok":
-                print("   ✅ Health check passed!")
-                return True
-            else:
-                print("   ❌ Health check failed - wrong status")
-                return False
-        else:
-            print(f"   ❌ Health check failed - wrong status code: {response.status_code}")
-            return False
-    except Exception as e:
-        print(f"   ❌ Health check failed with error: {e}")
-        return False
+    assert response.status_code == 200, f"Expected 200, got {response.status_code}"
+    
+    data = response.json()
+    assert data.get("status") == "ok", f"Expected status 'ok', got {data.get('status')}"
 
 def test_save_snippet():
     """Test saving a code snippet"""
-    print("🔄 Testing save snippet endpoint...")
-    
     snippet_data = {
         "name": "test-hello-world",
         "code": "print('Hello, World!')",
@@ -54,139 +37,74 @@ def test_save_snippet():
         "Content-Type": "application/json"
     }
     
-    try:
-        response = requests.post(
-            f"{FUNCTION_APP_URL}/api/snippets", 
-            json=snippet_data,
-            headers=headers,
-            timeout=60
-        )
-        print(f"   Status Code: {response.status_code}")
-        
-        if response.status_code == 200:
-            data = response.json()
-            print(f"   Response: {data}")
-            print("   ✅ Save snippet passed!")
-            return True
-        else:
-            print(f"   ❌ Save snippet failed - status code: {response.status_code}")
-            print(f"   Response: {response.text}")
-            return False
-    except Exception as e:
-        print(f"   ❌ Save snippet failed with error: {e}")
-        return False
+    response = requests.post(
+        f"{FUNCTION_APP_URL}/api/snippets", 
+        json=snippet_data,
+        headers=headers,
+        timeout=60
+    )
+    
+    assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
+    
+    # Wait for data propagation
+    time.sleep(2)
 
 def test_get_snippet():
     """Test retrieving a code snippet"""
-    print("🔄 Testing get snippet endpoint...")
-    
     headers = {
         "x-functions-key": FUNCTION_KEY
     }
     
-    try:
-        response = requests.get(f"{FUNCTION_APP_URL}/api/snippets/test-hello-world", headers=headers, timeout=30)
-        print(f"   Status Code: {response.status_code}")
-        
-        if response.status_code == 200:
-            data = response.json()
-            print(f"   Response: {data}")
-            if data.get("name") == "test-hello-world" and "print('Hello, World!')" in data.get("code", ""):
-                print("   ✅ Get snippet passed!")
-                return True
-            else:
-                print("   ❌ Get snippet failed - wrong data returned")
-                return False
-        elif response.status_code == 404:
-            print("   ⚠️  Snippet not found - may need to save first or wait for propagation")
-            return False
-        else:
-            print(f"   ❌ Get snippet failed - status code: {response.status_code}")
-            print(f"   Response: {response.text}")
-            return False
-    except Exception as e:
-        print(f"   ❌ Get snippet failed with error: {e}")
-        return False
+    response = requests.get(f"{FUNCTION_APP_URL}/api/snippets/test-hello-world", headers=headers, timeout=30)
+    
+    assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
+    
+    data = response.json()
+    assert data.get("name") == "test-hello-world", f"Expected name 'test-hello-world', got {data.get('name')}"
+    assert "print('Hello, World!')" in data.get("code", ""), "Expected code content not found"
 
 def test_list_snippets():
     """Test listing all snippets"""
-    print("🔄 Testing list snippets endpoint...")
-    
     headers = {
         "x-functions-key": FUNCTION_KEY
     }
     
-    try:
-        response = requests.get(f"{FUNCTION_APP_URL}/api/snippets", headers=headers, timeout=30)
-        print(f"   Status Code: {response.status_code}")
-        
-        if response.status_code == 200:
-            data = response.json()
-            print(f"   Found {len(data)} snippets")
-            if len(data) > 0:
-                print(f"   First snippet: {data[0].get('name', 'unknown')}")
-            print("   ✅ List snippets passed!")
-            return True
-        else:
-            print(f"   ❌ List snippets failed - status code: {response.status_code}")
-            print(f"   Response: {response.text}")
-            return False
-    except Exception as e:
-        print(f"   ❌ List snippets failed with error: {e}")
-        return False
+    response = requests.get(f"{FUNCTION_APP_URL}/api/snippets", headers=headers, timeout=30)
+    
+    assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
+    
+    data = response.json()
+    assert isinstance(data, list), "Expected response to be a list"
+    # Note: We don't assert len(data) > 0 because the list might be empty in a clean environment
 
 def main():
-    """Run all Level 1 tests"""
+    """Run all Level 1 tests in standalone mode"""
     print("🚀 Starting Level 1 Cloud Testing")
     print("=" * 50)
     
-    results = []
-    
-    # Test 1: Health Check
-    results.append(test_health_check())
-    print()
-    
-    # Test 2: Save Snippet
-    results.append(test_save_snippet())
-    print()
-    
-    # Wait a moment for data propagation
-    print("⏳ Waiting 5 seconds for data propagation...")
-    time.sleep(5)
-    print()
-    
-    # Test 3: Get Snippet
-    results.append(test_get_snippet())
-    print()
-    
-    # Test 4: List Snippets
-    results.append(test_list_snippets())
-    print()
-    
-    # Summary
-    print("=" * 50)
-    print("📊 LEVEL 1 TEST RESULTS:")
-    print(f"   Health Check: {'✅ PASS' if results[0] else '❌ FAIL'}")
-    print(f"   Save Snippet: {'✅ PASS' if results[1] else '❌ FAIL'}")
-    print(f"   Get Snippet:  {'✅ PASS' if results[2] else '❌ FAIL'}")
-    print(f"   List Snippets: {'✅ PASS' if results[3] else '❌ FAIL'}")
-    
-    total_passed = sum(results)
-    print(f"\n🎯 Overall: {total_passed}/4 tests passed")
-    
-    if total_passed == 4:
-        print("🎉 LEVEL 1 COMPLETED SUCCESSFULLY!")
-        print("\n✅ All Level 1 Success Criteria Met:")
-        print("   - HTTP endpoints deployed and accessible")
-        print("   - Health check endpoint working")
-        print("   - Save snippet functionality working")
-        print("   - Get snippet functionality working")
-        print("   - List snippets functionality working")
-        print("   - Data persistence in Azure Cosmos DB")
-        print("\n🚀 Ready to proceed to Level 2!")
+    try:
+        test_health_check()
+        print("✅ Health check passed!")
+        
+        test_save_snippet()
+        print("✅ Save snippet passed!")
+        
+        time.sleep(3)  # Extra wait for propagation
+        
+        test_get_snippet()
+        print("✅ Get snippet passed!")
+        
+        test_list_snippets()
+        print("✅ List snippets passed!")
+        
+        print("\n🎉 LEVEL 1 COMPLETED SUCCESSFULLY!")
         return 0
-    else:
-        print("❌ Level 1 not fully complete. Please check the failed tests.")
+        
+    except AssertionError as e:
+        print(f"❌ Test failed: {e}")
+        return 1
+    except Exception as e:
+        print(f"❌ Unexpected error: {e}")
         return 1
 
 if __name__ == "__main__":
