@@ -4,7 +4,7 @@
 *Master asynchronous AI workflows and distributed computing patterns*
 
 ## 🎓 Learning Objective
-Learn Azure Durable Functions to orchestrate complex AI workflows. Understand fan-out/fan-in patterns, async AI service integration, and how to build resilient, scalable AI processing pipelines.
+Learn how to use Azure Durable Functions to orchestrate complex AI workflows. Understand fan-out/fan-in patterns, async AI service integration, and how to build resilient, scalable AI processing pipelines.
 
 ## 📋 What You're Building
 An intelligent orchestration system that takes code snippets, chunks them for optimal processing, generates AI embeddings in parallel, and aggregates results for semantic search. This is the foundation of AI-powered code understanding.
@@ -150,14 +150,16 @@ Complete when you can verify:
    ```bash
    # Replace with your actual function app URL from azd output
    export FUNCTION_URL="https://your-function-app.azurewebsites.net"
+   export FUNCTION_KEY="YOUR_FUNCTION_KEY"
    
-   curl -X POST $FUNCTION_URL/api/orchestrators/embeddings \
-     -H "Content-Type: application/json" \
-     -d '{
-       "projectId": "test-project",
-       "name": "example.py", 
-       "text": "def hello():\n    print(\"Hello, World!\")\n    return \"success\""
-     }'
+  curl -X POST $FUNCTION_URL/api/orchestrators/embeddings \
+    -H "Content-Type: application/json" \
+    -H "x-functions-key: $FUNCTION_KEY" \
+    -d '{
+      "projectId": "test-project",
+      "name": "example.py", 
+      "text": "def hello():\n    print(\"Hello, World!\")\n    return \"success\""
+    }'
    ```
 
 Expected response:

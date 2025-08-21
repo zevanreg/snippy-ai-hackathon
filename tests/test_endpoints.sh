@@ -4,8 +4,8 @@
 # =============================================================================
 
 # Configuration
-FUNCTION_APP_URL="https://func-s2wsaefugjcvy.azurewebsites.net"
-FUNCTION_KEY="Y36BWOh9zsGA19BxFbF6SEZb7-_-4dV_NLRmdh3nr40mAzFu6oq2Tg=="
+FUNCTION_APP_URL = "https://your-function-app.azurewebsites.net" 
+FUNCTION_KEY = "your-function-key-here"
 
 echo "🧪 Testing Snippy Azure Functions Endpoints"
 echo "=========================================="
