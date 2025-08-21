@@ -27,38 +27,61 @@ def embeddings_orchestrator(context: df.DurableOrchestrationContext) -> Generato
     """Fan-out/fan-in to embed chunks and persist a snippet."""
     payload = context.get_input() or {}
     project_id: str = payload.get("projectId", "default-project")
-    name: str = payload.get("name", "unnamed")
-    text: str = payload.get("text", "")
+    snippets = payload.get("snippets", [])
 
-    logging.info(f"ORCH start name={name} project={project_id} length={len(text)}")
+    # Replay-aware logging for Durable orchestrations
+    instance_id = getattr(context, "instance_id", "unknown")
+    if context.is_replaying:
+        logging.info("[REPLAY] ORCH replay instance=%s project=%s snippets=%d", instance_id, project_id, len(snippets))
+    else:
+        logging.info("[EXEC] ORCH start instance=%s project=%s snippets=%d", instance_id, project_id, len(snippets))
+    chunkcount = 0
+    result: dict = {}
 
-    # Chunk deterministically
-    chunks = [text[i : i + CHUNK_SIZE] for i in range(0, len(text), CHUNK_SIZE)] or [""]
+    for snippet in snippets:
+        name: str = snippet.get("name", "unnamed")
+        text: str = snippet.get("code", "")
+        language: str = snippet.get("language", "unknown")
+        description: str = snippet.get("description", "no description")
 
-    # Fan-out embedding calls
-    tasks = [
-        context.call_activity("embed_chunk_activity", {"chunkIndex": i, "text": ch})
-        for i, ch in enumerate(chunks)
-    ]
-    embeddings: list[list[float]] = yield context.task_all(tasks)
+        if not text:
+            logging.warning("Skipping empty snippet %s", name)
+            continue
 
-    # Aggregate embeddings (simple mean vector)
-    agg: list[float] = []
-    if embeddings and embeddings[0]:
-        dim = len(embeddings[0])
-        sums = [0.0] * dim
-        for vec in embeddings:
-            for j in range(dim):
-                sums[j] += float(vec[j])
-        agg = [s / len(embeddings) for s in sums]
+        # Suppress noisy duplicate logs during replay
+        if not context.is_replaying:
+            logging.info("Processing snippet: %s", name)
+        # Chunk deterministically
+        chunks = [text[i : i + CHUNK_SIZE] for i in range(0, len(text), CHUNK_SIZE)] or [""]
+        chunkcount += len(chunks)
 
-    # Persist via activity (keeps I/O out of orchestrator)
-    result: dict = yield context.call_activity(
-        "persist_snippet_activity",
-        {"projectId": project_id, "name": name, "code": text, "embedding": agg},
-    )
+        # Fan-out embedding calls
+        tasks = [
+            context.call_activity("embed_chunk_activity", {"chunkIndex": i, "text": ch})
+            for i, ch in enumerate(chunks)
+        ]
+        embeddings: list[list[float]] = yield context.task_all(tasks)
 
-    logging.info("ORCH done name=%s chunks=%d", name, len(chunks))
+        # Aggregate embeddings (simple mean vector)
+        agg: list[float] = []
+        if embeddings and embeddings[0]:
+            dim = len(embeddings[0])
+            sums = [0.0] * dim
+            for vec in embeddings:
+                for j in range(dim):
+                    sums[j] += float(vec[j])
+            agg = [s / len(embeddings) for s in sums]
+
+        # Persist via activity (keeps I/O out of orchestrator)
+        result = yield context.call_activity(
+            "persist_snippet_activity",
+            {"projectId": project_id, "name": name, "code": text, "embedding": agg, "language": language, "description": description},
+        )
+
+    if context.is_replaying:
+        logging.info("[REPLAY] ORCH done instance=%s chunks=%d", instance_id, chunkcount)
+    else:
+        logging.info("[EXEC] ORCH done instance=%s total_snippets=%d chunks=%d", instance_id, len(snippets), chunkcount)
     return result
 
 
@@ -138,10 +161,12 @@ async def persist_snippet_activity(snippet: dict) -> dict:
     project_id: str = snippet.get("projectId", "default-project")
     code: str = snippet.get("code", "")
     embedding: list[float] = snippet.get("embedding", [])
+    language: str = snippet.get("language", "unknown")
+    description: str = snippet.get("description", "no description")
 
     try:
         result = await cosmos_ops.upsert_document(
-            name=name, project_id=project_id, code=code, embedding=embedding
+            name=name, project_id=project_id, code=code, embedding=embedding, language=language, description=description
         )
         return {"ok": True, "id": result.get("id", name)}
     except Exception as e:

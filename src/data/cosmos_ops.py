@@ -128,7 +128,7 @@ async def close_connections():
 
 # Upserts a document into Cosmos DB with vector embeddings
 # The document includes id, name, projectId, code, type, and embedding fields
-async def upsert_document(name: str, project_id: str, code: str, embedding: list) -> dict:
+async def upsert_document(name: str, project_id: str, code: str, embedding: list, language: str = None, description: str = None) -> dict:
     """
     Upserts a document into Cosmos DB with vector embeddings.
     
@@ -138,6 +138,8 @@ async def upsert_document(name: str, project_id: str, code: str, embedding: list
         "name": name,  # partition key
         "projectId": project_id,
         "code": code,
+        "language": language,
+        "description": description,
         "type": "code-snippet",
         "embedding": embedding  # int8 quantized vector
     }
@@ -166,6 +168,8 @@ async def upsert_document(name: str, project_id: str, code: str, embedding: list
             "name": name,  # This field is used for partition key
             "projectId": project_id,
             "code": code,
+            "language": language,
+            "description": description,
             "type": "code-snippet",
             "embedding": embedding  # Store the embedding vector
         }
