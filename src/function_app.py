@@ -111,7 +111,7 @@ async def http_health_check(req: func.HttpRequest) -> func.HttpResponse:
 
 # HTTP endpoint for health check
 @app.route(route="health_extended", methods=["GET"], auth_level=func.AuthLevel.ANONYMOUS)
-async def http_health_check(req: func.HttpRequest) -> func.HttpResponse:
+async def http_health_check_extended(req: func.HttpRequest) -> func.HttpResponse:
     """
     Health check endpoint to verify the service is running.
     
