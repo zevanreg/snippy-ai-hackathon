@@ -112,7 +112,7 @@ echo "Using Storage: ${masked_storage}"
 
 FUNCTION_APP_URL=$(azd env get-value FUNCTION_APP_URL)
 FUNCTION_KEY=${AZURE_FUNCTION_KEY}
-STORAGE_CONNECTION_STRING=${STORAGE_CONNECTION_STRING}
+STORAGE_CONNECTION_STRING=$(azd env get-values | grep STORAGE_CONNECTION_STRING | cut -d'"' -f2)
 
 append_once() {
   local file="$1"; shift
@@ -121,12 +121,12 @@ append_once() {
   grep -Fqx "$line" "$file" || echo "$line" >> "$file"
 }
 
-append_once "$HOME/.profile" "export FUNCTION_APP_URL=$FUNCTION_APP_URL"
-append_once "$HOME/.profile" "export FUNCTION_KEY=$FUNCTION_KEY"
-append_once "$HOME/.profile" "export STORAGE_CONNECTION_STRING=$STORAGE_CONNECTION_STRING"
-append_once "$HOME/.bashrc" "export FUNCTION_APP_URL=$FUNCTION_APP_URL"
-append_once "$HOME/.bashrc" "export FUNCTION_KEY=$FUNCTION_KEY"
-append_once "$HOME/.bashrc" "export STORAGE_CONNECTION_STRING=$STORAGE_CONNECTION_STRING"
+append_once "$HOME/.profile" "export FUNCTION_APP_URL=\"$FUNCTION_APP_URL\""
+append_once "$HOME/.profile" "export FUNCTION_KEY=\"$FUNCTION_KEY\""
+append_once "$HOME/.profile" "export STORAGE_CONNECTION_STRING=\"$STORAGE_CONNECTION_STRING\""
+append_once "$HOME/.bashrc" "export FUNCTION_APP_URL=\"$FUNCTION_APP_URL\""
+append_once "$HOME/.bashrc" "export FUNCTION_KEY=\"$FUNCTION_KEY\""
+append_once "$HOME/.bashrc" "export STORAGE_CONNECTION_STRING=\"$STORAGE_CONNECTION_STRING\""
 
 # VS Code / pytest auto-load support
 if [ ! -f .env ]; then
@@ -143,5 +143,5 @@ else
   rm -f .env.bak
 fi
 
-echo "Persisted FUNCTION_APP_URL and FUNCTION_KEY to ~/.profile, ~/.bashrc and .env"
+echo "Persisted FUNCTION_APP_URL, FUNCTION_KEY and STORAGE_CONNECTION_STRING to ~/.profile, ~/.bashrc and .env"
 echo "Open a new terminal or source your profile to load them now: source ~/.profile || source ~/.bashrc"

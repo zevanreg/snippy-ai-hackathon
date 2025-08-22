@@ -16,6 +16,7 @@ import asyncio
 import logging
 import requests
 from typing import Dict, Any
+import pytest
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -63,7 +64,8 @@ TEST_SNIPPETS = [
             }
         ]
 
-async def test_1_health_check() -> bool:
+@pytest.mark.asyncio
+async def test_1_health_check():
     """Test 1: Verify function app is healthy."""
     logger.info("🔍 Test 1: Health check")
     
@@ -75,12 +77,14 @@ async def test_1_health_check() -> bool:
         assert result["status"] in ["healthy", "ok"], f"Health status not healthy: {result}"
         
         logger.info("✅ Test 1 PASSED: Function app is healthy")
-        return True
         
     except Exception as e:
         logger.error(f"❌ Test 1 FAILED: {str(e)}")
+        pytest.fail(f"Health check failed: {str(e)}")
 
-async def test_2_create_test_snippets() -> bool:
+
+@pytest.mark.asyncio
+async def test_2_create_test_snippets():
     """Test 2: Create test snippets with embeddings (or fallback direct save)."""
     logger.info("🔍 Test 2: Creating test snippets with embeddings")
     try:
@@ -120,12 +124,12 @@ async def test_2_create_test_snippets() -> bool:
         missing = [s['name'] for s in TEST_SNIPPETS if s['name'] not in found_ids]
         assert len(missing) < len(TEST_SNIPPETS), f"Snippets missing: {missing}"  # allow id/name mismatch but most should appear
         logger.info("✅ Test 2 PASSED: Snippets available for search")
-        return True
     except Exception as e:
         logger.error(f"❌ Test 2 FAILED: {str(e)}")
-        return False
+        pytest.fail(f"Health check failed: {str(e)}")
 
-async def test_3_vector_search_accuracy() -> bool:
+@pytest.mark.asyncio
+async def test_3_vector_search_accuracy():
     """Test 3: Validate vector search retrieval accuracy."""
     logger.info("🔍 Test 3: Testing vector search accuracy")
     
@@ -188,12 +192,12 @@ async def test_3_vector_search_accuracy() -> bool:
         assert success_rate >= 0.67, f"Search accuracy too low: {success_rate:.2%}"
         
         logger.info(f"✅ Test 3 PASSED: Vector search accuracy = {success_rate:.2%}")
-        return True
         
     except Exception as e:
         logger.error(f"❌ Test 3 FAILED: {str(e)}")
-        return False
+        pytest.fail(f"Test 3 failed: {str(e)}")
 
+@pytest.mark.asyncio
 async def test_4_rag_response_quality() -> bool:
     """Test 4: Validate RAG response quality and citations."""
     logger.info("🔍 Test 4: Testing RAG response quality")
@@ -264,13 +268,13 @@ async def test_4_rag_response_quality() -> bool:
         assert success_rate >= 0.33, f"RAG quality too low: {success_rate:.2%}"
         
         logger.info(f"✅ Test 4 PASSED: RAG response quality = {success_rate:.2%}")
-        return True
         
     except Exception as e:
         logger.error(f"❌ Test 4 FAILED: {str(e)}")
-        return False
-   
-async def test_5_rbac_security() -> bool:
+        pytest.fail(f"Test 4 failed: {str(e)}")
+
+@pytest.mark.asyncio
+async def test_5_rbac_security():
     """Test 5: Validate RBAC and security controls."""
     logger.info("🔍 Test 5: Testing RBAC and security")
     
@@ -300,13 +304,13 @@ async def test_5_rbac_security() -> bool:
         assert not found_our_snippets, "Cross-project data leakage detected!"
         
         logger.info("✅ Test 5 PASSED: RBAC isolation working correctly")
-        return True
         
     except Exception as e:
         logger.error(f"❌ Test 5 FAILED: {str(e)}")
-        return False
+        pytest.fail(f"Test 5 failed: {str(e)}")
 
-async def test_6_edge_cases() -> bool:
+@pytest.mark.asyncio
+async def test_6_edge_cases():
     """Test 6: Handle edge cases and error scenarios."""
     logger.info("🔍 Test 6: Testing edge cases")
     
@@ -349,12 +353,10 @@ async def test_6_edge_cases() -> bool:
                 logger.info(f"✅ Gracefully handled: {case['name']}")
         
         logger.info("✅ Test 6 PASSED: Edge cases handled correctly")
-        return True
         
-    except Exception as e:
-        raise AssertionError(f"Edge case test failed: {str(e)}")
+    except Exception as e:        
+        pytest.fail(f"Edge case test failed: {str(e)}")
         logger.error(f"❌ Test 6 FAILED: {str(e)}")
-        return False
 
 
 async def main():
