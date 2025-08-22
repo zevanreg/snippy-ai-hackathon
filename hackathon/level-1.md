@@ -18,8 +18,37 @@ Before coding, familiarize yourself with the existing structure:
 - `src/data/cosmos_ops.py` - Database operations helper
 - `src/routes/query.py` - Query functionality (added in later levels)
 
-### Step 2: Verify Existing Endpoints
-**Good news!** The snippet endpoints already exist in `bp_snippy.py`. Your task is to:
+### Step 2: Health Check Verification
+A simple health endpoint is already implemented in `function_app.py`. Verify it returns HTTP 200 and:
+```json
+{"status": "ok"}
+```
+
+**Test it with Azure deployment:**
+```bash
+# Deploy to Azure first - this can take some 10-20 minutes
+az login
+azd up
+
+# Test with your deployed function URL
+curl https://your-function-app.azurewebsites.net/api/health
+```
+
+
+### Step 3: Implement extended health test
+
+We have a health test showing the endpoint is reachable. Implement an extended health-test that we can call to know if the azure function can successfully connect to the storage account and cosmosDB. 
+
+Start your implementation in [`src/function_app.py`](../src/function_app.py) at line 113. Some hints:
+
+- Right now the REST-endpoint returns [https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status/418](418) which seems wrong 🫖😅.
+- Look at the endpoint at line 88 to understand how to return a proper result. 
+- The connection details are all in environment variables
+- use the unit-test [`tests/test_cloud_level1.py`](../tests/test_cloud_level1.py) to check your result
+- run `azd deploy` to deploy your code
+
+### Step 4: Verify Existing Endpoints
+**Good news!** (most) of the snippet endpoints already exist in `bp_snippy.py`. Your task is to:
 
 1. **Review the existing implementation** in `src/functions/bp_snippy.py`
    - Look at the `save_snippet` function (POST /snippets/{snippet_name})
@@ -39,27 +68,12 @@ Before coding, familiarize yourself with the existing structure:
    ```
 
 4. **Verify error handling** - Ensure proper HTTP status codes:
-   - 200 for successful operations
-   - 400 for bad requests
-   - 404 for not found
-   - 500 for server errors
+   - 200-299 for successful operations
+   - 400-499 for bad requests
+     - 404 for not found
+   - 500-599 for server errors
 
-### Step 3: Health Check Verification
-The health endpoint is already implemented in `function_app.py`. Verify it returns:
-```json
-{"status": "ok"}
-```
-
-**Test it with Azure deployment:**
-```bash
-# Deploy to Azure first
-azd up
-
-# Test with your deployed function URL
-curl https://your-function-app.azurewebsites.net/api/health
-```
-
-### Step 4: Code Quality Standards
+### Step 5: Code Quality Standards
 As you review and enhance the code, ensure:
 
 - **Type hints everywhere**: 
@@ -82,7 +96,7 @@ As you review and enhance the code, ensure:
 
 - **Async/await patterns**: Don't await synchronous methods like `req.get_json()`
 
-### Step 5: Database Integration Deep Dive
+### Step 6: Database Integration Deep Dive
 Review how `data/cosmos_ops.py` is used:
 
 1. **Understand the `upsert_document()` function:**
@@ -120,10 +134,11 @@ Complete when you can verify:
 - ✅ All secrets come from environment variables
 - ✅ Comprehensive logging at INFO level
 - ✅ Type hints on all functions
+- ✅ All unit tests for level 1 (`test_cloud_level1.py`) are successful
 
 ## 🧪 Testing Strategy
 
-Create `tests/test_level1_endpoints.py` with these test cases:
+Look at `tests/test_level1_endpoints.py` with these test cases:
 
 ### Positive Test Cases:
 ```python
@@ -151,41 +166,6 @@ async def test_get_nonexistent_snippet():
     """Test retrieving a snippet that doesn't exist"""
 ```
 
-### Test Helper Patterns:
-```python
-# Mock Cosmos DB operations
-with patch('data.cosmos_ops.upsert_document') as mock_upsert:
-    mock_upsert.return_value = {"id": "test-snippet"}
-    # Your test code here
-```
-
-## 🚀 Deployment and Testing
-
-### Azure Cloud Deployment with Azure Developer CLI
-
-1. **Deploy to Azure:**
-   ```bash
-   azd auth login
-   azd up
-   ```
-
-2. **Test the endpoints:**
-   ```bash
-   # Replace with your actual function app URL from azd output
-   export FUNCTION_URL="https://your-function-app.azurewebsites.net"
-   
-   # Health check
-   curl $FUNCTION_URL/api/health -v
-   
-   # Save a snippet
-   curl -X POST $FUNCTION_URL/api/snippets/hello \
-     -H "Content-Type: application/json" \
-     -d '{"code": "print(\"Hello World\")"}'
-   
-   # Get the snippet
-   curl $FUNCTION_URL/api/snippets/hello
-   ```
-
 ## 💡 Pro Tips from Your Mentor
 
 ### 🔍 Debugging Tips:
@@ -196,7 +176,6 @@ with patch('data.cosmos_ops.upsert_document') as mock_upsert:
 - **Error responses**: Return meaningful error messages with appropriate status codes
 
 ### 🛡️ Security Best Practices:
-- **Input validation**: Sanitize all user inputs
 - **Environment isolation**: Keep secrets in environment variables
 - **Least privilege**: Only grant necessary permissions to your function app
 - **Request limits**: Consider implementing rate limiting for production use

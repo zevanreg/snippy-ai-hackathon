@@ -24,6 +24,15 @@ def test_health_check():
     data = response.json()
     assert data.get("status") == "ok", f"Expected status 'ok', got {data.get('status')}"
 
+def test_health_check_extended():
+    """Test the health check endpoint"""
+    response = requests.get(f"{FUNCTION_APP_URL}/api/health_extended", timeout=30)
+    
+    assert response.status_code == 200, f"Expected 200, got {response.status_code}"
+    
+    data = response.json()
+    assert data.get("status") == "ok", f"Expected status 'ok', got {data.get('status')}"
+
 def test_save_snippet():
     """Test saving a code snippet"""
     snippet_data = {

@@ -107,3 +107,23 @@ async def http_health_check(req: func.HttpRequest) -> func.HttpResponse:
             mimetype="application/json",
             status_code=500
         )
+
+
+# HTTP endpoint for health check
+@app.route(route="health_extended", methods=["GET"], auth_level=func.AuthLevel.ANONYMOUS)
+async def http_health_check(req: func.HttpRequest) -> func.HttpResponse:
+    """
+    Health check endpoint to verify the service is running.
+    
+    Returns:
+        JSON response with status "ok" and 200 status code
+    """
+    # TODO: verify connection to storage account and specifically INGESTION_CONTAINER is working (see environment variables)
+    # TODO: verify connection to cosmosDB is working
+    
+    logging.info("Extended Health check endpoint called")
+    return func.HttpResponse(
+        body=json.dumps({"status": "I'm a teapot?!?"}),
+        mimetype="application/json",
+        status_code=418
+    )
