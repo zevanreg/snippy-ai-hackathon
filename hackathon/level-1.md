@@ -134,7 +134,7 @@ Complete when you can verify:
 - ✅ All secrets come from environment variables
 - ✅ Comprehensive logging at INFO level
 - ✅ Type hints on all functions
-- ✅ All unit tests for level 1 (`test_cloud_level1.py`) are successful
+- ✅ Unit tests for this level succeed
 
 ## 🧪 Testing Strategy
 
