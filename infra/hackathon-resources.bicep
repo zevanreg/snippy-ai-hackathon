@@ -15,6 +15,8 @@ resource storage 'Microsoft.Storage/storageAccounts@2025-01-01' = {
     minimumTlsVersion: 'TLS1_2'
     allowBlobPublicAccess: false
     supportsHttpsTrafficOnly: true
+    publicNetworkAccess: 'Enabled'
+    allowSharedKeyAccess: true
   }  
   tags: tags
 }
@@ -66,6 +68,7 @@ resource cosmosAccount 'Microsoft.DocumentDB/databaseAccounts@2025-04-15' = {
       }
     ]
     disableLocalAuth: false
+    publicNetworkAccess: 'Enabled'
   }
   tags: tags
 }
