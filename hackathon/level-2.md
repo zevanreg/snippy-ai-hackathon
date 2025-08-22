@@ -86,6 +86,29 @@ async def embed_chunk_activity(data: str) -> list[float]:
             response = await embeds.embed(model=model, input=[text])
 ```
 
+### Step 4: Implement input validation
+Implement the function `validate_input` in `bp_embeddings.py` to validate the received inputs. 
+
+The input should look like this:
+```json
+{
+    "projectId": "project",
+    "snippets": [
+        {
+            "name": "test.py",
+            "code": "print('test')"
+        }
+    ]
+}
+```
+
+Additionally a snipped can contain the optional fields "language" and "description".
+
+1. If one of the mandatory fields (projectId, name, code) is missing, it should be recjected.
+1. No error should be raised if language or description is missing
+1. make sure HTTP 500 is returned by the `http_start_embeddings` if validation fails
+1. check the tests in `test_cloud_level2.py" and make sure all succeeded
+
 ### Step 4: Key Implementation Details
 
 #### Environment Variables Setup:
@@ -135,6 +158,7 @@ Complete when you can verify:
 - ✅ Error handling works for Azure OpenAI failures
 - ✅ Mock mode works for testing without external dependencies
 - ✅ All activities log start, progress, and completion
+- ✅ Unit tests for this level succeed
 
 ## 🧪 Testing the Implementation
 

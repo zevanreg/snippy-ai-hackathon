@@ -191,26 +191,4 @@ async def http_start_embeddings(req: func.HttpRequest, client: df.DurableOrchest
 
 def validate_input(input: dict) -> bool:
     """Validate the input JSON for the orchestration."""
-    try:
-        logging.info("Validating input: %s", input)
-        if not isinstance(input, dict):
-            return False
-        # Required top-level fields
-        
-        if "snippets" not in input:
-            return False
-        snippets = input.get("snippets")
-        # snippets must be a non-empty list (can relax to allow empty if desired)
-        if not isinstance(snippets, list) or len(snippets) == 0:
-            return False
-        # Each snippet must be dict with name + code (non-empty code)
-        for snip in snippets:
-            if not isinstance(snip, dict):
-                return False
-            if "name" not in snip or "code" not in snip:
-                return False
-            if not isinstance(snip["code"], str) or snip["code"].strip() == "":
-                return False
-        return True
-    except json.JSONDecodeError:
-        return False
+    return False
