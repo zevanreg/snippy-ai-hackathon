@@ -72,10 +72,9 @@ mask_keep3() {
 
 # Export the Azure Function key to AZURE_FUNCTION_KEY
 echo "Exporting environment variables for later use..."
-AZURE_FUNCTION_KEY=$(az functionapp keys list --name "$(azd env get-values | grep FUNCTION_APP_NAME | cut -d'"' -f2)" --resource-group "$(azd env get-values | grep AZURE_RESOURCE_GROUP | cut -d'"' -f2)" --query "functionKeys.default" -o tsv)
-export AZURE_FUNCTION_KEY
-AZURE_FUNCTION_NAME=$(azd env get-values | grep FUNCTION_APP_NAME | cut -d'"' -f2)
-export AZURE_FUNCTION_NAME
+AZURE_FUNCTION_KEY=$(az functionapp keys list --name "$(azd env get-value AZURE_FUNCTION_NAME)" --resource-group "snippy-ai-hackathon" --query "functionKeys.default" -o tsv)
+azd env set AZURE_FUNCTION_KEY "$AZURE_FUNCTION_KEY"
+
 
 
 # Print all azd variables; only mask known secrets
@@ -106,3 +105,43 @@ else
   masked_storage="$(mask_keep3 "${STORAGE_CONNECTION_STRING}")"
 fi
 echo "Using Storage: ${masked_storage}"
+
+# Minimal persistence of FUNCTION_APP_URL and FUNCTION_KEY (derived from AZURE_FUNCTION_KEY)
+# This keeps things simple: reuse existing AZURE_FUNCTION_KEY we already fetched.
+# If you prefer a different URL, set FUNCTION_APP_URL before running this script.
+
+FUNCTION_APP_URL=$(azd env get-value FUNCTION_APP_URL)
+FUNCTION_KEY=${AZURE_FUNCTION_KEY}
+STORAGE_CONNECTION_STRING=${STORAGE_CONNECTION_STRING}
+
+append_once() {
+  local file="$1"; shift
+  local line="$*"
+  touch "$file"
+  grep -Fqx "$line" "$file" || echo "$line" >> "$file"
+}
+
+append_once "$HOME/.profile" "export FUNCTION_APP_URL=$FUNCTION_APP_URL"
+append_once "$HOME/.profile" "export FUNCTION_KEY=$FUNCTION_KEY"
+append_once "$HOME/.profile" "export STORAGE_CONNECTION_STRING=$STORAGE_CONNECTION_STRING"
+append_once "$HOME/.bashrc" "export FUNCTION_APP_URL=$FUNCTION_APP_URL"
+append_once "$HOME/.bashrc" "export FUNCTION_KEY=$FUNCTION_KEY"
+append_once "$HOME/.bashrc" "export STORAGE_CONNECTION_STRING=$STORAGE_CONNECTION_STRING"
+
+# VS Code / pytest auto-load support
+if [ ! -f .env ]; then
+  cat > .env <<EOF_ENV
+FUNCTION_APP_URL=$FUNCTION_APP_URL
+FUNCTION_KEY=$FUNCTION_KEY
+STORAGE_CONNECTION_STRING=$STORAGE_CONNECTION_STRING
+EOF_ENV
+else
+  # Update existing .env in-place (simple approach: rewrite lines or append if missing)
+  grep -q '^FUNCTION_APP_URL=' .env && sed -i.bak "s#^FUNCTION_APP_URL=.*#FUNCTION_APP_URL=$FUNCTION_APP_URL#" .env || echo "FUNCTION_APP_URL=$FUNCTION_APP_URL" >> .env
+  grep -q '^FUNCTION_KEY=' .env && sed -i.bak "s#^FUNCTION_KEY=.*#FUNCTION_KEY=$FUNCTION_KEY#" .env || echo "FUNCTION_KEY=$FUNCTION_KEY" >> .env
+  grep -q '^STORAGE_CONNECTION_STRING=' .env && sed -i.bak "s#^STORAGE_CONNECTION_STRING=.*#STORAGE_CONNECTION_STRING=$STORAGE_CONNECTION_STRING#" .env || echo "STORAGE_CONNECTION_STRING=$STORAGE_CONNECTION_STRING" >> .env
+  rm -f .env.bak
+fi
+
+echo "Persisted FUNCTION_APP_URL and FUNCTION_KEY to ~/.profile, ~/.bashrc and .env"
+echo "Open a new terminal or source your profile to load them now: source ~/.profile || source ~/.bashrc"
