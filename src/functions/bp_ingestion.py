@@ -32,11 +32,6 @@ async def monitor_ingestion_container(blob_client: blob.BlobClient, df_client: d
     """Poll blob storage for new files to ingest."""
     logging.info("Blob trigger fired for blob: %s", blob_client.blob_name)
 
-    try:
-        await process_blob(blob_client.blob_name, blob_client, df_client)
-    except Exception as e:
-        logging.error("Failed to process blob %s: %s", blob_client.name, e)
-
 
 async def process_blob(blob_name: str, blob_client : BlobClient, df_client: df.DurableOrchestrationClient):
     """Process a single blob file."""

@@ -39,15 +39,24 @@ The ingestion flow works like this:
 
 #### Understanding Azure Blob Storage Events:
 ```python
-@bp.blob_trigger(
-    arg_name="blob",
-    path=f"{INGESTION_CONTAINER}/{{name}}",  # Watch specific container
-    connection="AzureWebJobsStorage",        # Connection string reference
-)
+@bp.blob_trigger(arg_name="blob_client", 
+                  path=CONTAINERNAME/OPTIONAL_BLOB_PREFIX,
+                  connection="AzureWebJobsStorage")
 @bp.durable_client_input(client_name="client")  # Inject orchestration client
-async def ingest_blob(blob: func.InputStream, name: str, client: df.DurableOrchestrationClient):
+async def monitor_ingestion_container(blob_client: blob.BlobClient, df_client: df.DurableOrchestrationClient):
     """Trigger orchestration for uploaded text/markdown file."""
 ```
+
+This decorator makes sure that for every file that gets added, the function is triggered. 
+
+Go to [bp_ingestion.py](../src/functions/bp_ingestion.py) and implement the function so that `process_blob` is called with the right arguments:
+
+- add the relevant blob_trigger decorator
+- call process_blob
+- notes: 
+    - you can get the blob_name from `blob_client.blob_name`
+    - `blob.BlobClient` can be passed as `BlobClient` argument (casting happens automatically)
+    - include some logging
 
 Key concepts:
 - **Container Watching**: Monitor specific blob containers for new files
@@ -218,7 +227,7 @@ Complete when you can verify:
 - ✅ Error handling manages failures without breaking the pipeline
 - ✅ Custom metrics track business-relevant performance indicators
 - ✅ KQL queries provide operational insights
-- ✅ RBAC controls access to storage and processing resources
+- ✅ Unit tests for this level succeed
 
 ## 🧪 Testing the Implementation
 
