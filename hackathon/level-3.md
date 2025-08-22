@@ -32,7 +32,18 @@ The flow works like this:
 4. **AI Generation**: Generate grounded response using chat completion
 5. **Citation Extraction**: Return sources for verification
 
-### Step 2: Vector Search Deep Dive
+### Step 2: Implement storing of snippets
+
+The solution uses [cosmos_ops](../src/data/cosmos_ops.py) as a central modul to interact with the database. Implement the function to store a snippet in the database. 
+
+1. go to line 133 and implement `upsert_document`.
+1. parameters:
+   - mandatory: name, project_id, code, embedding
+   - optional: language, description
+1. use upsert to make sure we can create and insert with a single operation
+1. use the integration tests in `test_cloud_level3.py` to verify
+
+### Step 3: Vector Search Deep Dive
 
 #### Understanding Embeddings Similarity:
 Vector search works by comparing high-dimensional vectors that represent semantic meaning:
@@ -67,7 +78,7 @@ async def vector_search(question: str, project_id: str, top_k: int = 5) -> list[
     return results
 ```
 
-### Step 3: RAG Implementation Patterns
+### Step 4: RAG Implementation Patterns
 
 #### Context Assembly:
 ```python
@@ -109,7 +120,7 @@ async def generate_grounded_response(question: str, context: str) -> str:
     return response.choices[0].message.content
 ```
 
-### Step 4: Understanding the Complete Implementation
+### Step 5: Understanding the Complete Implementation
 
 The query endpoint in `src/routes/query.py` implements this full pipeline:
 
@@ -162,7 +173,7 @@ async def query_endpoint(req: func.HttpRequest) -> func.HttpResponse:
         # Error handling...
 ```
 
-### Step 5: Advanced RAG Techniques
+### Step 6: Advanced RAG Techniques
 
 #### Citation Extraction:
 ```python
@@ -195,6 +206,7 @@ Complete when you can verify:
 - ✅ Response format is consistent and includes usage metadata
 - ✅ Temperature and context window limits are properly configured
 - ✅ System refuses to answer questions not covered by retrieved snippets
+- ✅ Unit tests for this level succeed
 
 ## 🧪 Testing the Implementation
 
