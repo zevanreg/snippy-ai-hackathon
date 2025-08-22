@@ -6,6 +6,7 @@
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import json
@@ -23,22 +24,21 @@ MAX_BLOB_MB = int(os.environ.get("MAX_BLOB_MB", "2"))
 STORAGE_CONNECTION = os.environ.get("AzureWebJobsStorage")
 
 
-@bp.blob_trigger(arg_name="myblob", 
+@bp.blob_trigger(arg_name="blob_client", 
                   path=INGESTION_CONTAINER,
                   connection="AzureWebJobsStorage")
-@bp.durable_client_input(client_name="starter")
-async def poll_ingestion_container(myblob: blob.BlobClient, starter: df.DurableOrchestrationClient) -> None:
+@bp.durable_client_input(client_name="df_client")
+async def monitor_ingestion_container(blob_client: blob.BlobClient, df_client: df.DurableOrchestrationClient):
     """Poll blob storage for new files to ingest."""
-    logging.info("Blob trigger fired for blob: %s", myblob.blob_name)
+    logging.info("Blob trigger fired for blob: %s", blob_client.blob_name)
 
     try:
-        await process_blob(myblob.blob_name, myblob, starter)
+        await process_blob(blob_client.blob_name, blob_client, df_client)
     except Exception as e:
-        logging.error("Failed to process blob %s: %s", myblob.name, e)
+        logging.error("Failed to process blob %s: %s", blob_client.name, e)
 
 
-# async def process_blob(blob_name: str, container_client, starter: df.DurableOrchestrationClient) -> None:
-async def process_blob(blob_name: str, blob_client : BlobClient, starter: df.DurableOrchestrationClient) -> None:
+async def process_blob(blob_name: str, blob_client : BlobClient, df_client: df.DurableOrchestrationClient):
     """Process a single blob file."""
     try:
         logging.info(f"Processing blob: {blob_name}")
@@ -85,90 +85,29 @@ async def process_blob(blob_name: str, blob_client : BlobClient, starter: df.Dur
             return
 
         payload = {
-            "projectId": os.environ.get("DEFAULT_PROJECT_ID", "default-project"), 
-            "name": blob_name, 
-            "text": text
+            "snippets": [
+                {
+                    "name": blob_name, 
+                    "code": text
+                }
+            ]
         }
 
-        # Start orchestration
-        try:
-            instance_id = await starter.start_new("embeddings_orchestrator", None, payload)
-            logging.info("Ingestion started orchestration id=%s for %s", instance_id, blob_name)
-            
-            # Delete successfully processed file
-            blob_client.delete_blob()
-            logging.info("Deleted processed file: %s", blob_name)
-            
-        except Exception as e:
-            logging.error("Failed to start orchestration for %s: %s", blob_name, e)
-            raise
+        # Orchestration startup with retry
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                instance_id = await df_client.start_new("embeddings_orchestrator", None, payload)
+                logging.info("Ingestion started orchestration id=%s for %s", instance_id, blob_name)
+                break
+            except Exception as e:
+                if attempt == max_retries - 1:
+                    raise
+                logging.warning("Orchestration start failed (attempt %d/%d): %s", 
+                              attempt + 1, max_retries, e)
+                await asyncio.sleep(2 ** attempt)  # Exponential backoff
 
     except Exception as e:
         logging.error("Processing failed for %s: %s", blob_name, e, exc_info=True)
         # Don't delete file on processing errors - will retry next cycle
 
-
-@bp.route(route="ingestion/upload", methods=["POST"], auth_level=func.AuthLevel.FUNCTION)
-async def http_upload_for_ingestion(req: func.HttpRequest) -> func.HttpResponse:
-    """HTTP endpoint for file upload that saves to blob storage for timer processing."""
-    logging.info("Upload endpoint called")
-    
-    if not STORAGE_CONNECTION:
-        logging.error("Storage connection not configured")
-        return func.HttpResponse(
-            body=json.dumps({"error": "Storage not configured"}),
-            mimetype="application/json",
-            status_code=500
-        )
-    
-    try:
-        # Parse request
-        req_body = req.get_json()
-        if not req_body:
-            logging.error("No JSON body in request")
-            return func.HttpResponse(
-                body=json.dumps({"error": "Request body is required"}),
-                mimetype="application/json",
-                status_code=400
-            )
-
-        filename = req_body.get("filename")
-        content = req_body.get("content")
-
-        if not filename or not content:
-            logging.error("Missing filename or content")
-            return func.HttpResponse(
-                body=json.dumps({"error": "filename and content are required"}),
-                mimetype="application/json",
-                status_code=400
-            )
-
-        logging.info(f"Uploading file {filename} to container {INGESTION_CONTAINER}")
-        
-        # Upload to blob storage for timer processing
-        blob_service_client = BlobServiceClient.from_connection_string(STORAGE_CONNECTION)
-        blob_client = blob_service_client.get_blob_client(
-            container=INGESTION_CONTAINER,
-            blob=filename
-        )
-        
-        blob_client.upload_blob(content, overwrite=True)
-        logging.info(f"Successfully uploaded {filename}")
-        
-        return func.HttpResponse(
-            body=json.dumps({
-                "success": True,
-                "message": f"File {filename} uploaded and queued for processing",
-                "filename": filename
-            }),
-            mimetype="application/json",
-            status_code=202
-        )
-        
-    except Exception as e:
-        logging.error("Upload failed: %s", e, exc_info=True)
-        return func.HttpResponse(
-            body=json.dumps({"error": f"Upload failed: {str(e)}"}),
-            mimetype="application/json",
-            status_code=500
-        )

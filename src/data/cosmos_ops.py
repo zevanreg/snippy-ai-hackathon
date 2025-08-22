@@ -113,6 +113,7 @@ async def get_container():
             raise
     return _container
 
+
 # Closes all Cosmos DB connections and resets cached client, database, and container
 async def close_connections():
     """
@@ -125,6 +126,7 @@ async def close_connections():
         _database = None
         _container = None
         logger.info("Closed Cosmos DB connections")
+
 
 # Upserts a document into Cosmos DB with vector embeddings
 # The document includes id, name, projectId, code, type, and embedding fields

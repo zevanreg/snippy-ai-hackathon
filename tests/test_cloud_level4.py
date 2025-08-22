@@ -18,6 +18,7 @@ import json
 import tempfile
 import logging
 from typing import Dict, Any
+from unittest.mock import AsyncMock, MagicMock
 
 # Add src directory to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
@@ -28,11 +29,11 @@ from azure.storage.blob import BlobServiceClient
 from azure.core.exceptions import ResourceExistsError
 import uuid
 
-FUNCTION_APP_URL = os.getenv("FUNCTION_APP_URL", "https://your-function-app.azurewebsites.net")
+# FUNCTION_APP_URL = os.getenv("FUNCTION_APP_URL", "https://your-function-app.azurewebsites.net")
+FUNCTION_APP_URL = "http://localhost:7071"
 FUNCTION_KEY = os.getenv("FUNCTION_KEY", "your-function-key-here")
 STORAGE_CONNECTION_STRING = os.getenv("STORAGE_CONNECTION_STRING", "your-storage-connection-string-here")
 CONTAINER_NAME = "snippet-inputs"
-
 PROJECT_NAME = f"test-project-{uuid.uuid4().hex[:8]}"
 
 # Configure logging
@@ -100,13 +101,15 @@ def test_3_file_upload_and_processing() -> bool:
         logger.info("🔍 Test 3: File upload and automatic processing")
         
         # Test files to upload
-        test_files = {
-            "hello_world.py": '''def hello_world():
+        # Use a run-scoped unique suffix to avoid name collisions across test runs / parallel executions.
+        run_suffix = uuid.uuid4().hex[:6]
+        test_files = [
+            (f"hello_world_{run_suffix}.py", '''def hello_world():
 """A simple greeting function."""
 print("Hello, World!")
 return "success"
-''',
-            "api_docs.md": '''# API Documentation
+'''),
+            (f"api_docs_{run_suffix}.md", '''# API Documentation
 
 ## Authentication
 Use Bearer tokens for API authentication.
@@ -115,8 +118,8 @@ Use Bearer tokens for API authentication.
 headers = {"Authorization": "Bearer <token>"}
 response = requests.get("/api/data", headers=headers)
 ```
-''',
-            "config.json": '''{
+'''),
+            (f"config_{run_suffix}.json", '''{
 "name": "test-config",
 "version": "1.0.0",
 "settings": {
@@ -124,13 +127,13 @@ response = requests.get("/api/data", headers=headers)
     "timeout": 30
 }
 }
-'''
-        }
+''')
+        ]
         
         container_client = get_storage_client().get_container_client(CONTAINER_NAME)
         successful_uploads = 0
-        
-        for filename, content in test_files.items():
+
+        for filename, content in test_files:
             try:
                 # Upload file to trigger blob ingestion
                 blob_client = container_client.get_blob_client(filename)
@@ -143,25 +146,53 @@ response = requests.get("/api/data", headers=headers)
                 
             except Exception as e:
                 logger.error(f"Failed to upload {filename}: {e}")
-
-        assert successful_uploads == len(test_files), f"Only {successful_uploads} out of {len(test_files)} files uploaded successfully"
+        
+        assert successful_uploads == len(test_files), (
+            f"Only {successful_uploads} out of {len(test_files)} files uploaded successfully"
+        )
 
         if successful_uploads == len(test_files):
-            logger.info(f"✅ Test 3 PASSED: Successfully uploaded {successful_uploads}/{len(test_files)} files")
+            logger.info(
+                f"✅ Test 3 PASSED: Successfully uploaded {successful_uploads}/{len(test_files)} files"
+            )
         else:
             logger.error("❌ Test 3 FAILED: No files uploaded successfully")
-        
-        # check if we now have some snippets with our project-id - retry for some 20-30 seconds if there are none as processing can take some time
-        for _ in range(10):
-            response = _make_request("GET", "snippet", params={"projectId": PROJECT_NAME})
-            if response.status_code == 200 and response.json():
-                logger.info(f"✅ Test 3 PASSED: Found snippets for project {PROJECT_NAME}")
-                break
-            logger.info(f"⏳ Test 3: Waiting for snippets to be processed...")
-            time.sleep(3)
+
+        # Time-based retry loop: allow up to 30s for all files to be processed
+        deadline_sec = 30
+        poll_interval = 3
+        start_time = time.time()
+        remaining = {fname for fname, _ in test_files}
+
+        while remaining and (time.time() - start_time) < deadline_sec:
+            to_remove = set()
+            for filename in list(remaining):
+                response = _make_request("GET", f"snippets/{filename}")
+                if response.status_code == 200:
+                    data = response.json()
+                    if data:  # Found at least one snippet
+                        logger.info(f"✅ Snippets available for {filename}")
+                        to_remove.add(filename)
+                else:
+                    logger.debug(
+                        f"Non-200 while checking {filename}: {response.status_code}"
+                    )
+            remaining -= to_remove
+            if remaining:
+                logger.info(
+                    f"Waiting for snippets... {len(remaining)} file(s) still pending: {sorted(remaining)}"
+                )
+                time.sleep(poll_interval)
+
+        if remaining:
+            logger.error(
+                f"❌ Test 3 FAILED: No snippets found for files: {sorted(remaining)} within {deadline_sec}s"
+            )
+            pytest.fail(
+                f"❌ Test 3 FAILED: No snippets found for files: {sorted(remaining)} within {deadline_sec}s"
+            )
         else:
-            pytest.fail(f"❌ Test 3 FAILED: No snippets found for project {PROJECT_NAME}")
-            logger.error(f"❌ Test 3 FAILED: No snippets found for project {PROJECT_NAME}")
+            logger.info("✅ Test 3 PASSED: Snippets found for all uploaded files")
 
     except Exception as e:
         logger.error(f"❌ Test 3 FAILED: {e}")

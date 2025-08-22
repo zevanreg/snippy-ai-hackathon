@@ -17,15 +17,18 @@ import logging
 import requests
 from typing import Dict, Any
 import pytest
+import uuid
+from data import cosmos_ops  # adjust if your import root differs
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Test configuration - replace with your deployed function app
+# FUNCTION_APP_URL = "http://localhost:7071"
 FUNCTION_APP_URL = os.getenv("FUNCTION_APP_URL", "https://your-function-app.azurewebsites.net")
 FUNCTION_KEY = os.getenv("FUNCTION_KEY", "your-function-key-here")
-PROJECT_ID = "test-level3-vectors"
+PROJECT_ID = f"test-level3-vectors-{uuid.uuid4().hex[:8]}"
 
 # Headers for authenticated requests
 HEADERS = {
@@ -113,16 +116,24 @@ async def test_2_create_test_snippets():
                 logger.info("✅ Fallback save completed for all snippets")
             else:
                 raise AssertionError(f"Orchestration start failed: {response.status_code} {response.text}")
+        # give it some 20 seconds to process
+        for _ in range(20):
         # Verify snippets exist
-        verify_response = requests.get(
-            f"{FUNCTION_APP_URL}/api/snippets?projectId={PROJECT_ID}",
-            headers=HEADERS
-        )
-        assert verify_response.status_code == 200, f"List failed: {verify_response.status_code}"
-        snippets = verify_response.json()
-        found_ids = {s.get('id') or s.get('name') for s in snippets}
-        missing = [s['name'] for s in TEST_SNIPPETS if s['name'] not in found_ids]
-        assert len(missing) < len(TEST_SNIPPETS), f"Snippets missing: {missing}"  # allow id/name mismatch but most should appear
+            verify_response = requests.get(
+                f"{FUNCTION_APP_URL}/api/snippets?projectId={PROJECT_ID}",
+                headers=HEADERS
+            )
+            assert verify_response.status_code == 200, f"List failed: {verify_response.status_code}"
+            snippets = verify_response.json()
+            found_ids = {s.get('id') or s.get('name') for s in snippets}
+            missing = [s['name'] for s in TEST_SNIPPETS if s['name'] not in found_ids]
+            if len(missing) > 0:
+                logger.warning("Snippets not yet available, retrying...")
+                await asyncio.sleep(1)
+            else:
+                break
+        
+        assert len(missing) <= 0, f"Snippets missing: {missing}"  # allow id/name mismatch but most should appear
         logger.info("✅ Test 2 PASSED: Snippets available for search")
     except Exception as e:
         logger.error(f"❌ Test 2 FAILED: {str(e)}")
@@ -357,6 +368,93 @@ async def test_6_edge_cases():
     except Exception as e:        
         pytest.fail(f"Edge case test failed: {str(e)}")
         logger.error(f"❌ Test 6 FAILED: {str(e)}")
+
+
+
+@pytest.mark.asyncio
+async def test_upsert_document_minimal(monkeypatch):
+    captured = {}
+
+    class FakeContainer:
+        async def upsert_item(self, body):
+            # Capture what was passed so we can assert after
+            captured.update(body)
+            # Simulate Cosmos returning the stored doc (it usually echoes/augments)
+            return body
+
+    async def fake_get_container():
+        return FakeContainer()
+
+    # Monkeypatch the async factory so no real Cosmos client is created
+    monkeypatch.setattr(cosmos_ops, "get_container", fake_get_container)
+
+    result = await cosmos_ops.upsert_document(
+        name="snippet_a",
+        project_id="proj1",
+        code="print('hello')",
+        embedding=[0.1, 0.2, 0.3],
+    )
+
+    # Assert returned result matches what we expect
+    assert result["id"] == "snippet_a"
+    assert result["name"] == "snippet_a"         # partition key
+    assert result["projectId"] == "proj1"
+    assert result["code"] == "print('hello')"
+    assert result["embedding"] == [0.1, 0.2, 0.3]
+    assert result["type"] == "code-snippet"
+    # Optional fields default to None
+    assert "language" in result and result["language"] is None
+    assert "description" in result and result["description"] is None
+
+    # Also confirm what was sent to container (captured) is identical
+    assert captured == result
+
+@pytest.mark.asyncio
+async def test_upsert_document_with_optional_fields(monkeypatch):
+    captured = {}
+
+    class FakeContainer:
+        async def upsert_item(self, body):
+            captured.update(body)
+            return body
+
+    async def fake_get_container():
+        return FakeContainer()
+
+    monkeypatch.setattr(cosmos_ops, "get_container", fake_get_container)
+
+    result = await cosmos_ops.upsert_document(
+        name="snippet_b",
+        project_id="projX",
+        code="def add(a,b): return a+b",
+        embedding=[1, 2, 3],
+        language="python",
+        description="Simple add function",
+    )
+
+    assert result["language"] == "python"
+    assert result["description"] == "Simple add function"
+    assert captured == result  # body integrity
+
+@pytest.mark.asyncio
+async def test_upsert_document_failure(monkeypatch):
+    class FailingContainer:
+        async def upsert_item(self, body):
+            raise RuntimeError("Boom")
+
+    async def fake_get_container():
+        return FailingContainer()
+
+    monkeypatch.setattr(cosmos_ops, "get_container", fake_get_container)
+
+    with pytest.raises(RuntimeError) as exc:
+        await cosmos_ops.upsert_document(
+            name="snippet_fail",
+            project_id="projZ",
+            code="x=1",
+            embedding=[],
+        )
+    assert "Boom" in str(exc.value)
 
 
 async def main():

@@ -26,7 +26,10 @@ CHUNK_SIZE = int(os.environ.get("CHUNK_SIZE", "800"))
 def embeddings_orchestrator(context: df.DurableOrchestrationContext) -> Generator[Any, Any, dict]:
     """Fan-out/fan-in to embed chunks and persist a snippet."""
     payload = context.get_input() or {}
-    project_id: str = payload.get("projectId", "default-project")
+    if not validate_input(payload):
+        raise ValueError("Invalid input payload")
+
+    project_id: str = payload.get("projectId", os.environ.get("DEFAULT_PROJECT_ID", "default-project"))
     snippets = payload.get("snippets", [])
 
     # Replay-aware logging for Durable orchestrations
@@ -51,18 +54,20 @@ def embeddings_orchestrator(context: df.DurableOrchestrationContext) -> Generato
         # Suppress noisy duplicate logs during replay
         if not context.is_replaying:
             logging.info("Processing snippet: %s", name)
-        # Chunk deterministically
+        # 1. Chunk deterministically
         chunks = [text[i : i + CHUNK_SIZE] for i in range(0, len(text), CHUNK_SIZE)] or [""]
         chunkcount += len(chunks)
 
-        # Fan-out embedding calls
+        # 2. Fan-out embedding calls
         tasks = [
             context.call_activity("embed_chunk_activity", {"chunkIndex": i, "text": ch})
             for i, ch in enumerate(chunks)
         ]
-        embeddings: list[list[float]] = yield context.task_all(tasks)
 
-        # Aggregate embeddings (simple mean vector)
+        # 3. Fan in: Wait for all results
+        embeddings: list[list[float]] = yield context.task_all(tasks)
+        
+        # calculate an averaged embedding for this snipped (simple mean vector)
         agg: list[float] = []
         if embeddings and embeddings[0]:
             dim = len(embeddings[0])
@@ -133,15 +138,6 @@ async def embed_chunk_activity(chunk : dict) -> list[float]:
             
             query_vector = [float(x) for x in response.data[0].embedding]
             return query_vector
-            
-
-        # async with DefaultAzureCredential() as cred:
-        #     from azure.ai.inference.aio import EmbeddingsClient
-        #     async with EmbeddingsClient(endpoint=endpoint, credential=cred) as embeds:
-        #         rsp = await embeds.embed(model=model_name, input=[text])
-        #         if not rsp.data or not rsp.data[0].embedding:
-        #             return []
-        #         return [float(x) for x in rsp.data[0].embedding]
     except Exception as e:
         logging.error("Embedding failed: %s", e, exc_info=True)
         return []
@@ -180,6 +176,9 @@ async def http_start_embeddings(req: func.HttpRequest, client: df.DurableOrchest
     """HTTP starter for embeddings orchestrator."""
     try:
         body = req.get_json()
+        if not validate_input(body):
+            return func.HttpResponse(body=json.dumps({"error": "Invalid input"}), mimetype="application/json", status_code=400)
+
         function_name = "embeddings_orchestrator"
         # Start orchestration (async)
         instance_id = await client.start_new(orchestration_function_name=function_name, instance_id=None, client_input=body)
@@ -189,3 +188,29 @@ async def http_start_embeddings(req: func.HttpRequest, client: df.DurableOrchest
     except Exception as e:
         logging.error("HTTP starter error: %s", e, exc_info=True)
         return func.HttpResponse(body=json.dumps({"error": str(e)}), mimetype="application/json", status_code=500)
+
+def validate_input(input: dict) -> bool:
+    """Validate the input JSON for the orchestration."""
+    try:
+        logging.info("Validating input: %s", input)
+        if not isinstance(input, dict):
+            return False
+        # Required top-level fields
+        
+        if "snippets" not in input:
+            return False
+        snippets = input.get("snippets")
+        # snippets must be a non-empty list (can relax to allow empty if desired)
+        if not isinstance(snippets, list) or len(snippets) == 0:
+            return False
+        # Each snippet must be dict with name + code (non-empty code)
+        for snip in snippets:
+            if not isinstance(snip, dict):
+                return False
+            if "name" not in snip or "code" not in snip:
+                return False
+            if not isinstance(snip["code"], str) or snip["code"].strip() == "":
+                return False
+        return True
+    except json.JSONDecodeError:
+        return False
