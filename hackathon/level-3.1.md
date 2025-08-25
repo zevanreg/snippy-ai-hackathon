@@ -123,7 +123,7 @@ This tells github copilot where to look for MCP tools that github copilot can us
    - Select some interesting code sections (or it'll take the entire file as a snippet, which is okay)
    - In Copilot Chat, type: **save this snippet as ai-agents-service-usage** and click enter or hit Send
    - Copilot will suggest using the **save_snippet** tool - click **Continue**
-6. **Test the *get_snippet* Tool**:
+6. Test the *get_snippet* Tool:
    - In Copilot Chat, type: **get the snippet named ai-agents-service-usage** and click enter or hit Send
    - Copilot will suggest using the **get_snippet** tool - click **Continue**
 7. Experiment with Advanced AI Agent Tools:
@@ -132,7 +132,7 @@ This tells github copilot where to look for MCP tools that github copilot can us
      - **create a code style guide based on the saved snippets and place in a new file code-style.md in project root** (uses the *code_style* tool)
    - These agent-based tools may take 15-30 seconds to run as they orchestrate (via managed AI Agents service) with configured tools and have self-reflection
    - Once they are done, open the files and Preview the generated Markdown (*Ctrl+K V*)
-8. **Check Function Logs**:
+8. Check Function Logs:
     - functions running locally:
         - In the terminal where `func start` is running, you'll see logs for each tool invocation
         - This confirms your MCP tools are working end-to-end
@@ -141,6 +141,28 @@ This tells github copilot where to look for MCP tools that github copilot can us
 ### Selecting Environment
 - Use `local-snippy` during `func start` development.
 - Switch to `remote-snippy` for deployed testing; supply system key (preferred over per‑function keys for MCP).
+
+## 🛠️ Implement Vector search MCP tool
+
+Add the functionality to search snippets using vector search (semantic simliarity). To do this you have to
+
+1. open [bp_snippy.py](../src/functions/bp_snippy.py) and go to 590
+1. Implement the functionality and remember to
+    - check other MCP tools (such as mcp_save_snippet) and the HTTP implementation (line 128: `http_save_snippet`) for reference
+    - add good description in the trigger so that the agent can find this tool (this is prompt engineering!)
+    - add the descriptions for the tools parameters (check line 90) - look at other `tool_properties_...` for examples
+    - test your functionality with a prompt like "and make sure
+1. Check if it works: 
+    - put this code in a new editor window and ask copilot to store it (remember to add the open file to the context).
+      ```python
+      def hello_world():
+        """Greetings to all hackers! 😎"""
+        print("Hello, World!")
+        return "success"
+      ```
+    - use the following prompt with github copilot to get it: **search for a snippet that uses python and hello world in the repository**
+        - *eventually disable the list_snippets tool to make sure this tool is being used*
+
 
 ## 🔐 Authentication Model
 | Path | Purpose | Auth |
