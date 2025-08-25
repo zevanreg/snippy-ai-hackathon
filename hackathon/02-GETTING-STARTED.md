@@ -11,14 +11,15 @@ Welcome to the Snippy AI Hackathon! This guide will walk you through everything 
 
 ## 🎯 Challenge Overview
 
-Build a progressive AI knowledge assistant through 6 levels:
+Build a progressive AI knowledge assistant through 7 levels:
 
 - **Level 1** → Foundation API + Persistence
 - **Level 2** → Durable Orchestration: Fan-out Embeddings  
 - **Level 3** → Vector Search + Q&A with Citations
-- **Level 4** → Event-driven Ingestion + Observability
-- **Level 5** → Multi-Agent Orchestration
-- **Level 6** → Zero Trust Network Security
+- **Level 4** → MCP Tool Integration with GitHub Copilot
+- **Level 5** → Event-driven Ingestion + Observability
+- **Level 6** → Multi-Agent Orchestration
+- **Level 7** → Zero Trust Network Security
 
 ## 🛠️ Environment Setup
 
@@ -71,12 +72,12 @@ azd up
 ## 🎯 Winning Strategy
 
 ### For Teams Aiming for Completion (Recommended)
-1. **Hours 1-5**: Focus intensely on Levels 1-5
-2. **Hours 5-6**: Attempt Level 6 if time permits
+1. **Hours 1-6**: Focus intensely on Levels 1-6
+2. **Hours 6-7**: Attempt Level 7 if time permits
 3. **Key Success Factor**: Solid implementation of core features
 
 ### For Advanced Teams
-1. **Parallel Development**: Split team across levels 3-4 and 5-6
+1. **Parallel Development**: Split team across levels 4-5 and 6-7
 2. **Infrastructure First**: Ensure robust foundation
 3. **Integration Focus**: Ensure all components work together
 
@@ -180,23 +181,28 @@ az account show --query "{subscription:id, tenant:tenantId}"
 - [ ] Vector database queries optimized
 - [ ] All Level 3 tests passing
 
-### Level 4: Event-driven + Observability ✅
+### Level 4: MCP Integration ✅
+- [ ] GitHub Copilot tool integration working
+- [ ] MCP tools discoverable in Copilot Chat
+- [ ] Conversational snippet operations
+- [ ] All Level 4 tests passing
+
+### Level 5: Event-driven + Observability ✅
 - [ ] Blob trigger processing documents automatically
 - [ ] Comprehensive Application Insights telemetry
 - [ ] Error handling and retry logic
-- [ ] All Level 4 tests passing
+- [ ] All Level 5 tests passing
 
-### Level 5: Multi-Agent ✅
+### Level 6: Multi-Agent ✅
 - [ ] Multiple AI agents collaborating
 - [ ] Agent communication framework
 - [ ] Complex task orchestration
-- [ ] All Level 5 tests passing
+- [ ] All Level 6 tests passing
 
-### Level 6: Zero Trust (Stretch) ✅
+### Level 7: Zero Trust (Stretch) ✅
 - [ ] Private endpoints implemented
 - [ ] Network isolation complete
 - [ ] Security monitoring active
-- [ ] All Level 6 tests passing
 
 ## 🚀 Ready to Start?
 

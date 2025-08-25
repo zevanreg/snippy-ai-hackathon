@@ -365,7 +365,7 @@ You've mastered Level 3 when:
 6. Performance is optimized for production workloads
 7. You can explain how embeddings enable semantic search
 
-**Ready for Level 4?** You'll add event-driven ingestion and comprehensive observability!
+**Ready for Level 4?** You'll integrate with GitHub Copilot via MCP tools!
 
 ---
 

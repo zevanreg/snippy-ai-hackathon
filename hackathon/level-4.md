@@ -1,393 +1,254 @@
-# Level 4 — Event-driven Ingestion + Observability
+# Level 4 — Snippy as an MCP Tool in GitHub Copilot Agent Mode
 
-**🎯 Challenge Points: 15 points (Operations Level)**  
-*Build production-ready automation and monitoring systems*
+**🎯 Challenge Points: 10 points (Integration Bonus)**  
+*Expose your existing AI + vector capabilities directly to GitHub Copilot via the Model Context Protocol (MCP)*
 
 ## 🎓 Learning Objective
-Master event-driven architecture, automated content ingestion, and production observability. Learn to build systems that automatically process content and provide comprehensive monitoring for operational excellence.
+Bridge your Azure Functions implementation with AI assistants. Learn how Snippy's snippet storage, vector search, documentation, and style generation are surfaced as first‑class MCP tools that GitHub Copilot (and any MCP‑aware client) can invoke conversationally.
 
-## 📋 What You're Building
-An intelligent automation system that watches for new code files, automatically processes them through your AI pipeline, and provides complete visibility into system health and performance. This transforms your manual workflow into a production-ready service.
+## 📋 What You will unlock with this level
+Level 3 introduced vector search + grounded Q&A. Level 4 shows how those backend capabilities become interactive tools in Copilot Chat. Instead of writing HTTP calls manually, you (or Copilot) can now say things like:
 
-## 🧠 Why Event-Driven Architecture Matters
-Manual uploads don't scale in production environments:
-- **Automatic Processing**: Files are processed immediately upon upload
-- **Scalable Ingestion**: Handle hundreds of files without manual intervention  
-- **Reliable Delivery**: Event-driven systems provide at-least-once processing guarantees
-- **Operational Visibility**: Comprehensive monitoring enables proactive issue resolution
-- **Cost Efficiency**: Only process resources when needed
+> “Save this code block as payment_handler in project checkout”  
+> “Search snippets for async retry logic”  
+> “Generate a style guide”  
+> “Create a deep wiki focused on database access patterns”
 
-## 🛠️ Step-by-Step Implementation Guide
+Copilot automatically discovers the Snippy tool catalog through MCP and sends structured invocations—no custom plugin code required.
 
-### Step 1: Understanding Event-Driven Architecture
-Study the existing implementation in `src/functions/bp_ingestion.py`:
+## 🧠 Why MCP Integration Matters
+- **Native AI Workflow**: Tools appear inline in Copilot Chat; the assistant chooses when to call them.
+- **Schema Awareness**: Tool property metadata guides Copilot to supply correct arguments (names, types, descriptions).
+- **Single Source of Truth**: Same business logic powers both HTTP endpoints and MCP tools—no code duplication.
+- **Rapid Iteration**: Add a new Azure Function + `@generic_trigger(type="mcpToolTrigger")` → instantly available to AI assistants.
+- **Security & Governance**: Existing Function auth (keys) + system keys protect your MCP surface.
 
-```
-📁 File Upload → 🎯 Blob Trigger → ✅ Validation → 🔄 Start Orchestration → 📊 Monitor Progress
-                                      ↓
-🚫 Skip Invalid ← 📏 Size Check ← 📄 Content Type ← 🔍 File Analysis
-```
+## 🛠️ MCP Tool Catalog (Snippy)
+| Tool | Purpose | Mirrors HTTP Endpoint | Key Inputs |
+|------|---------|-----------------------|------------|
+| `save_snippet` | Persist code + generate embedding | `POST /api/snippets` | snippetname, snippet, projectid |
+| `get_snippet` | Fetch snippet by name | `GET /api/snippets/{name}` | snippetname |
+| `search_snippets` | Semantic vector search | (RAG pipeline via `/api/query`) | query, projectid, max_results |
+| `list_snippets` | Enumerate stored snippets | `GET /api/snippets` | projectid (optional) |
+| `delete_snippet` | (Placeholder) locate + future delete | N/A (not fully implemented) | snippetname, projectid |
+| `code_style` | Generate style guide markdown | `POST /api/snippets/code-style` | chathistory, userquery |
+| `deep_wiki` | Produce comprehensive wiki | `POST /api/snippets/wiki` | chathistory, userquery |
 
-The ingestion flow works like this:
-1. **Blob Trigger**: Azure Storage automatically invokes function on file upload
-2. **Content Validation**: Check file type, size, and format
-3. **Text Extraction**: Read and decode file content
-4. **Orchestration Start**: Kick off the embeddings pipeline from Level 2
-5. **Progress Tracking**: Monitor processing through Application Insights
+All seven are registered through strongly‑typed property schemas so Copilot can auto‑fill arguments.
 
-### Step 2: Blob Trigger Deep Dive
+## 🔌 How Registration Works
+Each tool uses the Azure Functions Blueprint generic trigger:
 
-#### Understanding Azure Blob Storage Events:
 ```python
-@bp.blob_trigger(arg_name="blob_client", 
-                  path=CONTAINERNAME/OPTIONAL_BLOB_PREFIX,
-                  connection="AzureWebJobsStorage")
-@bp.durable_client_input(client_name="client")  # Inject orchestration client
-async def monitor_ingestion_container(blob_client: blob.BlobClient, df_client: df.DurableOrchestrationClient):
-    """Trigger orchestration for uploaded text/markdown file."""
+@bp.generic_trigger(
+		arg_name="context",
+		type="mcpToolTrigger",
+		toolName="save_snippet",
+		description="Saves a given code snippet…",
+		toolProperties=tool_properties_save_snippets_json,
+)
 ```
 
-This decorator makes sure that for every file that gets added, the function is triggered. 
+Embedding generation for relevant tools chains via:
 
-Go to [bp_ingestion.py](../src/functions/bp_ingestion.py) and implement the function so that `process_blob` is called with the right arguments:
-
-- add the relevant blob_trigger decorator
-- call process_blob
-- notes: 
-    - you can get the blob_name from `blob_client.blob_name`
-    - `blob.BlobClient` can be passed as `BlobClient` argument (casting happens automatically)
-    - include some logging
-
-Key concepts:
-- **Container Watching**: Monitor specific blob containers for new files
-- **Event Filtering**: Only process relevant file types and sizes
-- **Automatic Scaling**: Azure handles scaling based on upload volume
-- **Durable Integration**: Seamlessly start orchestrations from blob events
-
-#### Content Validation and Processing:
 ```python
-# Size validation
-size_mb = blob.length / (1024 * 1024)
-if size_mb > MAX_BLOB_MB:
-    logging.warning("Skipping blob %s: size %.2fMB > limit %dMB", name, size_mb, MAX_BLOB_MB)
-    return
-
-# Content type validation  
-content_type = getattr(blob, "content_type", "text/plain") or "text/plain"
-if not (content_type.startswith("text/") or name.lower().endswith((".md", ".txt", ".py", ".js"))):
-    logging.info("Skipping non-text blob: %s (%s)", name, content_type)
-    return
-
-# Text extraction with encoding handling
-text = blob.read().decode("utf-8", errors="ignore")
+@bp.embeddings_input(
+		arg_name="embeddings",
+		input="{arguments.snippet}",
+		input_type="rawText",
+		embeddings_model="%EMBEDDING_MODEL_DEPLOYMENT_NAME%"
+)
 ```
 
-### Step 3: Orchestration Integration
+This decorator automatically calls Azure OpenAI, injects the embedding, and keeps orchestration logic minimal.
 
-#### Seamless Pipeline Connection:
-```python
-# Prepare payload for embeddings orchestration
-payload = {
-    "projectId": os.environ.get("DEFAULT_PROJECT_ID", "default-project"),
-    "name": name,
-    "text": text
+### Tool Property System
+`ToolProperty` objects define name, type, description → serialized to JSON → provided to Copilot. This enables:
+- Guided parameter completion
+- Validation of required vs optional fields
+- Consistent UX between HTTP & MCP
+
+## 🧩 Copilot Side: Discovery & Invocation Flow
+```
+Copilot Session Start → Connect SSE (/runtime/webhooks/mcp/sse)
+				 ↓
+				Server streams tool schemas
+				 ↓
+User Prompt (“search for retry logic”) → Copilot plans → Invokes search_snippets
+				 ↓
+Function executes vector search → returns JSON results
+				 ↓
+Copilot grounds follow‑up answer using tool output
+```
+
+## ⚙️ Configuration (`.vscode/mcp.json`)
+```jsonc
+{
+	"servers": {
+		"remote-snippy": {
+			"type": "sse",
+			"url": "https://${input:functionapp-name}.azurewebsites.net/runtime/webhooks/mcp/sse",
+			"headers": { "x-functions-key": "${input:functions-mcp-extension-system-key}" }
+		},
+		"local-snippy": {
+			"type": "sse",
+			"url": "http://localhost:7071/runtime/webhooks/mcp/sse"
+		}
+	}
+}
+```
+
+This tells github copilot where to look for MCP tools that github copilot can use in agent mode. Try it:
+
+1. Verify MCP Server configuration
+    1. open [mcp.json](../.vscode/mcp.json)
+    1. see the small Start-button and start it if its not running
+    ![alt text](assets/VSCode-MCP.json-start-server.png)
+1. View MCP Server logs
+    1. Press Ctrl+Shift+P to open the Command Palette
+    1. Type 'MCP: List Servers' and select it
+    1. Select the local-snippy server from the dropdown (or remote whichever you are using)
+    1. Click 'Show Output' to see the server logs
+    1. Tip: Click the settings icon next to "MCP: local-snippy" in the output panel to change log level to "trace" for more detailed logs
+    ![alt text](assets/VSCode-MCP-change-log-level.png)
+1. Open GitHub Copilot Chat
+1. Configure Copilot Chat for Tools
+   - Ensure **Agent mode** is active (select from the dropdown next to the model selector, or *Ctrl+.*)
+    ![GitHub Copilot agent mode](assets/VSCode-GithubCopilot-agentmode.png)
+   - At the bottom of the chat panel, click **Select Tools...** (or press Ctrl+Shift+/)
+   - Make sure *MCP Server: local-snippy* and all its tools are checked
+   - Hit Escape, or Click **OK** to confirm your selection
+1. Test the *save_snippet* Tool:
+   - Open any code file (e.g., **src/agents/code_style.py**) 
+   - Select some interesting code sections (or it'll take the entire file as a snippet, which is okay)
+   - In Copilot Chat, type: **save this snippet as ai-agents-service-usage** and click enter or hit Send
+   - Copilot will suggest using the **save_snippet** tool - click **Continue**
+6. Test the *get_snippet* Tool:
+   - In Copilot Chat, type: **get the snippet named ai-agents-service-usage** and click enter or hit Send
+   - Copilot will suggest using the **get_snippet** tool - click **Continue**
+7. Experiment with Advanced AI Agent Tools:
+   - Try these prompts (no need to select code first):
+     - **generate a deep wiki for all snippets and place in a new file deep-wiki.md in project root** (uses the *deep_wiki* tool)
+     - **create a code style guide based on the saved snippets and place in a new file code-style.md in project root** (uses the *code_style* tool)
+   - These agent-based tools may take 15-30 seconds to run as they orchestrate (via managed AI Agents service) with configured tools and have self-reflection
+   - Once they are done, open the files and Preview the generated Markdown (*Ctrl+K V*)
+8. Check Function Logs:
+    - functions running locally:
+        - In the terminal where `func start` is running, you'll see logs for each tool invocation
+        - This confirms your MCP tools are working end-to-end
+    - go to application insights and check the traces table
+
+### Selecting Environment
+- Use `local-snippy` during `func start` development.
+- Switch to `remote-snippy` for deployed testing; supply system key (preferred over per‑function keys for MCP).
+
+## 🛠️ Implement Vector search MCP tool
+
+Add the functionality to search snippets using vector search (semantic simliarity). To do this you have to
+
+1. open [bp_snippy.py](../src/functions/bp_snippy.py) and go to line 590 to implement `mcp_search_snippets`
+1. Implement the functionality for and remember to
+    - check other MCP tools (such as mcp_save_snippet) and the HTTP implementation (line 128: `http_save_snippet`) for reference
+    - add good description in the trigger so that the agent can find this tool (this is prompt engineering!)
+    - add the descriptions for the tools parameters (check line 90) - look at other `tool_properties_...` for examples
+    - test your functionality with a prompt like "and make sure
+1. Check if it works: 
+    - put this code in a new editor window and ask copilot to store it (remember to add the open file to the context).
+      ```python
+      def hello_world():
+        """Greetings to all hackers! 😎"""
+        print("Hello, World!")
+        return "success"
+      ```
+    - use the following prompt with github copilot to get it: **search for a snippet that uses python and hello world in the repository**
+        - *eventually disable the list_snippets tool to make sure this tool is being used*
+
+
+## 🔐 Authentication Model
+| Path | Purpose | Auth |
+|------|---------|------|
+| `/api/*` | Classic HTTP endpoints | Function key (or other configured auth) |
+| `/runtime/webhooks/mcp/sse` | MCP tool discovery + streaming | System key / function key |
+
+System keys can be rotated independently. Copilot includes the key in the `x-functions-key` header per `.vscode/mcp.json`.
+
+## 🔄 Dual Interface Pattern
+Same storage + embedding logic is consumed by both surfaces:
+- HTTP path returns `HttpResponse`
+- MCP path returns raw JSON (or markdown for `deep_wiki`)
+
+This keeps business logic testable and avoids divergence.
+
+## 🗣️ Example Copilot Chat Prompts
+| Prompt | Expected Tool | Copilot Behavior |
+|--------|---------------|------------------|
+| “Store this snippet as http_utils in project core” | save_snippet | Extracts code block, sends name + projectId + snippet |
+| “List snippets for project core” | list_snippets | Adds project filter if you supplied it in prior turns |
+| “Search for JWT validation logic” | search_snippets | Supplies query, uses default project if not specified |
+| “Show snippet payment_handler” | get_snippet | Returns snippet JSON, Copilot may inline code |
+| “Generate a style guide for our patterns” | code_style | Optionally includes prior chat as chathistory |
+| “Create a wiki focusing on API security” | deep_wiki | Returns markdown ready to persist |
+
+## 🧮 Response Shapes (Representative)
+```jsonc
+// search_snippets
+{
+	"query": "retry logic",
+	"results_count": 2,
+	"snippets": [
+		{ "name": "retry_helper", "score": 0.12, "code_preview": "async def with_retry..." }
+	]
 }
 
-# Start the embeddings orchestration from Level 2
-instance_id = await client.start_new("embeddings_orchestrator", None, payload)
-logging.info("Ingestion started orchestration id=%s for %s", instance_id, name)
+// save_snippet
+{
+	"id": "retry_helper",
+	"name": "retry_helper",
+	"projectId": "core",
+	"status": "upserted"
+}
 ```
 
-This creates a seamless flow:
-1. File uploaded to blob storage
-2. Blob trigger fires immediately  
-3. Content validated and extracted
-4. Embeddings orchestration started
-5. Text chunked and processed in parallel
-6. Results persisted to Cosmos DB
-7. All steps monitored and logged
+`deep_wiki` returns raw markdown (not JSON) so Copilot can immediately display formatted sections.
 
-### Step 4: Production Observability
+## 🛡️ Guardrails & Safety
+- Tool inputs constrained by property schemas.
+- Embedding generation restricted to supplied snippet text (no arbitrary remote fetch).
+- Auth key required for all MCP access.
+- Placeholder delete prevents accidental destructive operations until fully implemented.
 
-#### Application Insights Integration:
-The system provides multiple layers of observability:
-
-1. **Automatic Function Metrics**:
-   - Function execution times
-   - Success/failure rates
-   - Memory and CPU usage
-   - Cold start metrics
-
-2. **Custom Telemetry**:
-   ```python
-   # Custom events for business logic
-   logging.info("Ingestion started orchestration id=%s for %s", instance_id, name)
-   
-   # Performance tracking
-   start_time = time.time()
-   # ... processing ...
-   duration = time.time() - start_time
-   logging.info("Processing completed in %.2f seconds", duration)
-   
-   # Error tracking with context
-   try:
-       # ... processing ...
-   except Exception as e:
-       logging.error("Ingestion failed for %s: %s", name, e, exc_info=True)
-   ```
-
-3. **Orchestration Monitoring**:
-   - Durable function status tracking
-   - Activity success/failure rates
-   - Processing queue depths
-   - End-to-end latency
-
-#### Kusto Query Language (KQL) for Monitoring:
-```kusto
-// Recent ingestion activity
-traces
-| where timestamp > ago(1h)
-| where message has "Ingestion started orchestration"
-| project timestamp, severityLevel, message
-| order by timestamp desc
-
-// Error analysis
-exceptions
-| where timestamp > ago(24h)
-| where cloud_RoleName == "your-function-app"
-| summarize count() by type, outerMessage
-| order by count_ desc
-
-// Performance metrics
-customMetrics
-| where timestamp > ago(1h)
-| where name == "ProcessingDuration"
-| summarize avg(value), max(value), min(value) by bin(timestamp, 5m)
-| render timechart
-```
-
-### Step 5: Error Handling and Resilience
-
-#### Comprehensive Error Handling:
-```python
-async def ingest_blob(blob: func.InputStream, name: str, client: df.DurableOrchestrationClient):
-    """Robust blob ingestion with comprehensive error handling."""
-    try:
-        # Validation layer
-        if not validate_blob(blob, name):
-            return
-        
-        # Content extraction with encoding fallback
-        try:
-            text = blob.read().decode("utf-8")
-        except UnicodeDecodeError:
-            text = blob.read().decode("utf-8", errors="ignore")
-            logging.warning("Unicode decode errors in %s, using error-ignore mode", name)
-        
-        # Orchestration startup with retry
-        max_retries = 3
-        for attempt in range(max_retries):
-            try:
-                instance_id = await client.start_new("embeddings_orchestrator", None, payload)
-                logging.info("Ingestion started orchestration id=%s for %s", instance_id, name)
-                break
-            except Exception as e:
-                if attempt == max_retries - 1:
-                    raise
-                logging.warning("Orchestration start failed (attempt %d/%d): %s", 
-                              attempt + 1, max_retries, e)
-                await asyncio.sleep(2 ** attempt)  # Exponential backoff
-                
-    except Exception as e:
-        logging.error("Ingestion failed for %s: %s", name, e, exc_info=True)
-        # In production, consider dead letter queue or retry policies
-```
-
-#### Circuit Breaker Pattern:
-```python
-# Environment-based circuit breaker
-CIRCUIT_BREAKER_ENABLED = os.environ.get("ENABLE_CIRCUIT_BREAKER", "0") == "1"
-FAILURE_THRESHOLD = int(os.environ.get("FAILURE_THRESHOLD", "5"))
-
-# Track failures in memory (for demo - use Redis/Cosmos in production)
-failure_count = 0
-
-if CIRCUIT_BREAKER_ENABLED and failure_count >= FAILURE_THRESHOLD:
-    logging.warning("Circuit breaker open, skipping processing for %s", name)
-    return
-```
+## 🚀 Extending the Catalog
+Add a new function:
+1. Implement HTTP version (optional but recommended)
+2. Add business logic (shared module)
+3. Define `ToolProperty` list + JSON dump
+4. Decorate with `@bp.generic_trigger(type="mcpToolTrigger", ...)`
+5. (Optional) Chain embeddings with `@bp.embeddings_input`
+6. Redeploy → Copilot auto‑discovers it on next session start
 
 ## ✅ Acceptance Criteria
-Complete when you can verify:
-- ✅ Blob trigger activates on file upload to designated container
-- ✅ Content validation filters by file type and size limits
-- ✅ Text extraction handles various encodings gracefully
-- ✅ Orchestration starts automatically for valid files
-- ✅ Application Insights captures all processing events
-- ✅ Error handling manages failures without breaking the pipeline
-- ✅ Custom metrics track business-relevant performance indicators
-- ✅ KQL queries provide operational insights
-- ✅ Unit tests for this level succeed
+Complete when you can:
+- ✅ See Snippy tools listed in Copilot Chat (Agent mode) under available actions
+- ✅ Invoke `save_snippet` from natural language and confirm Cosmos persistence
+- ✅ Run semantic search (`search_snippets`) and receive relevant results
+- ✅ Generate style guide + wiki with contextual prompts
+- ✅ Observe matching behavior between MCP tools and HTTP endpoints
+- ✅ Rotate the system key and reconnect successfully
+- ✅ Add (or simulate) a new tool and have it appear without UI changes
 
-## 🧪 Testing the Implementation
+## 💡 Pro Tips
+- Provide explicit names in prompts to reduce LLM ambiguity (e.g., “Store as retry_helper”).
+- Use follow‑up prompts—Copilot will reuse earlier argument values (e.g., projectId) where appropriate.
+- If a tool errors, ask Copilot to “show raw tool invocation” to debug arguments.
+- Keep descriptions in `ToolProperty` concise but action‑oriented; this directly affects Copilot’s plan quality.
 
-### Cloud Testing with Azure Storage:
-
-1. **Deploy to Azure:**
-   ```bash
-   azd auth login
-   azd up
-   ```
-
-2. **Create test files:**
-   ```bash
-   # Create a Python snippet
-   echo 'def hello_world():
-       """A simple greeting function."""
-       print("Hello, World!")
-       return "success"' > test_snippet.py
-   
-   # Create a markdown document
-   echo '# API Documentation
-   
-   ## Authentication
-   Use Bearer tokens for API authentication.
-   
-   ```python
-   headers = {"Authorization": "Bearer <token>"}
-   response = requests.get("/api/data", headers=headers)
-   ```' > test_docs.md
-   ```
-
-3. **Upload and monitor:**
-   ```bash
-   # Get storage connection string from your deployment
-   STORAGE_CONN=$(az storage account show-connection-string \
-     --name your-storage-account \
-     --resource-group your-resource-group \
-     --query connectionString -o tsv)
-   
-   # Upload using Azure Storage
-   az storage blob upload \
-     --file test_snippet.py \
-     --container-name snippet-input \
-     --name test_snippet.py \
-     --connection-string "$STORAGE_CONN"
-   
-   # Monitor function logs in Azure Portal
-   az functionapp logs tail --name your-function-app --resource-group your-resource-group
-   ```
-
-4. **Expected log output:**
-   ```
-   [2024-08-18T10:30:15.123Z] Executing 'ingest_blob' (Reason='New blob detected: test_snippet.py')
-   [2024-08-18T10:30:15.234Z] Ingestion started orchestration id=abc123 for test_snippet.py
-   [2024-08-18T10:30:15.345Z] Executed 'ingest_blob' (Succeeded, Id=def456)
-   ```
-
-### Testing Edge Cases:
-
-```bash
-# Test file size limit
-dd if=/dev/zero of=large_file.txt bs=1M count=5
-az storage blob upload --file large_file.txt --container-name snippet-input --name large_file.txt
-
-# Test unsupported file type
-echo "binary data" > test.bin
-az storage blob upload --file test.bin --container-name snippet-input --name test.bin
-
-# Test Unicode handling
-echo "Hello 世界 🌍" > unicode_test.py
-az storage blob upload --file unicode_test.py --container-name snippet-input --name unicode_test.py
-```
-
-## 🚀 Deployment Options
-
-### Cloud Deployment with Full Infrastructure
-
-1. **Deploy complete infrastructure:**
-   ```bash
-   azd up
-   ```
-
-2. **Configure production settings:**
-   ```bash
-   # Set environment variables via Azure Portal or CLI
-   az functionapp config appsettings set \
-     --name your-function-app \
-     --resource-group your-resource-group \
-     --settings \
-     INGESTION_CONTAINER=snippet-input \
-     MAX_BLOB_MB=10 \
-     ENABLE_CIRCUIT_BREAKER=1
-   ```
-
-3. **Test production ingestion:**
-   ```bash
-   # Get storage connection string
-   STORAGE_CONN=$(az storage account show-connection-string \
-     --name your-storage-account \
-     --resource-group your-resource-group \
-     --query connectionString -o tsv)
-   
-   # Upload test file
-   az storage blob upload \
-     --file production_snippet.py \
-     --container-name snippet-input \
-     --name production_snippet.py \
-     --connection-string "$STORAGE_CONN"
-   ```
-
-4. **Monitor in Application Insights:**
-   ```bash
-   # Query recent ingestion events
-   az monitor app-insights query \
-     --app your-app-insights \
-     --analytics-query "traces | where timestamp > ago(1h) | where message has 'Ingestion started'"
-   ```
-
-## 💡 Pro Tips from Your Mentor
-
-### 🔍 Monitoring Best Practices:
-- **Correlation IDs**: Track requests across function boundaries
-- **Custom dimensions**: Add business context to telemetry
-- **Performance counters**: Monitor processing rates and latencies
-- **Alert rules**: Set up proactive notifications for failures
-
-### 🚀 Performance Optimization:
-- **Batch processing**: Group small files together for efficiency
-- **Content filtering**: Early rejection of inappropriate files
-- **Connection pooling**: Reuse storage and database connections
-- **Async patterns**: Use async/await throughout the pipeline
-
-### 🛡️ Security and Compliance:
-- **Content scanning**: Validate uploaded content for security issues
-- **Access logging**: Track who uploads what files
-- **Retention policies**: Automatically clean up old files
-- **Encryption**: Ensure data is encrypted in transit and at rest
-
-### 📊 Operational Excellence:
-- **Health checks**: Implement endpoint monitoring
-- **Capacity planning**: Monitor storage and processing limits
-- **Disaster recovery**: Plan for region failover scenarios
-- **Cost optimization**: Monitor and optimize resource usage
-
-## 🎯 Success Indicators
-You've mastered Level 4 when:
-1. Files are automatically processed upon upload without manual intervention
-2. Comprehensive monitoring provides full visibility into system behavior
-3. Error handling gracefully manages various failure scenarios
-4. Performance metrics guide optimization decisions
-5. RBAC properly secures access to storage and processing resources
-6. You can troubleshoot issues using Application Insights queries
-7. The system handles production-scale file volumes efficiently
-
-**Ready for Level 5?** You'll implement multi-agent communication and advanced AI workflows!
+## 🧭 Where This Leads
+Next levels build on MCP exposure to enable multi‑agent tool orchestration (Level 5) and Zero Trust policies (Level 6) enforced at the tool boundary.
 
 ---
 
-## 📚 Additional Resources
-- [Azure Blob Storage Triggers](https://docs.microsoft.com/en-us/azure/azure-functions/functions-bindings-storage-blob-trigger)
-- [Application Insights for Azure Functions](https://docs.microsoft.com/en-us/azure/azure-functions/functions-monitoring)
-- [KQL (Kusto Query Language)](https://docs.microsoft.com/en-us/azure/data-explorer/kusto/query/)
-- [Event-Driven Architecture Patterns](https://docs.microsoft.com/en-us/azure/architecture/guide/architecture-styles/event-driven)
+## 🎯 Summary
+You’ve turned Snippy into a first‑class AI tool suite. By layering MCP onto existing Azure Functions you unlocked conversational, schema‑aware access for GitHub Copilot—without rewriting core logic. This is the pattern for rapidly productizing internal APIs as AI‑consumable capabilities.
+
+**Ready for Level 5?** You'll operationalize ingestion & observability while keeping MCP tools instantly in sync.
+
