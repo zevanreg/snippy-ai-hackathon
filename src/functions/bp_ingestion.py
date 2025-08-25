@@ -30,7 +30,8 @@ STORAGE_CONNECTION = os.environ.get("AzureWebJobsStorage")
 @bp.durable_client_input(client_name="df_client")
 async def monitor_ingestion_container(blob_client: blob.BlobClient, df_client: df.DurableOrchestrationClient):
     """Poll blob storage for new files to ingest."""
-    logging.info("Blob trigger fired for blob: %s", blob_client.blob_name)
+    #TODO: Implement processing of blob
+    logging.error("Ingestion not implemented yet")
 
 
 async def process_blob(blob_name: str, blob_client : BlobClient, df_client: df.DurableOrchestrationClient):
