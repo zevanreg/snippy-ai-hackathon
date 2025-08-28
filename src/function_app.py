@@ -113,17 +113,82 @@ async def http_health_check(req: func.HttpRequest) -> func.HttpResponse:
 @app.route(route="health_extended", methods=["GET"], auth_level=func.AuthLevel.ANONYMOUS)
 async def http_health_check_extended(req: func.HttpRequest) -> func.HttpResponse:
     """
-    Health check endpoint to verify the service is running.
+    Extended health check endpoint to verify service and dependencies are working.
     
     Returns:
-        JSON response with status "ok" and 200 status code
+        JSON response with detailed status information and appropriate status code
     """
-    # TODO: verify connection to storage account and specifically INGESTION_CONTAINER is working (see environment variables)
-    # TODO: verify connection to cosmosDB is working
+    import os
+    from datetime import datetime
+    from azure.storage.blob.aio import BlobServiceClient
+    from data.cosmos_ops import get_container
     
-    logging.info("Extended Health check endpoint called")
+    logging.info("Extended health check endpoint called")
+    
+    health_status = {
+        "status": "ok",
+        "services": {
+            "cosmos_db": {"status": "unknown"},
+            "blob_storage": {"status": "unknown"}
+        },
+        "timestamp": datetime.utcnow().isoformat() + "Z"
+    }
+    
+    overall_healthy = True
+    
+    # Check Cosmos DB connection
+    try:
+        container = await get_container()
+        health_status["services"]["cosmos_db"] = {
+            "status": "healthy",
+            "database": os.environ.get("COSMOS_DATABASE_NAME"),
+            "container": os.environ.get("COSMOS_CONTAINER_NAME")
+        }
+        logging.info("✅ Cosmos DB connection verified")
+    except Exception as e:
+        health_status["services"]["cosmos_db"] = {
+            "status": "unhealthy",
+            "error": str(e)
+        }
+        overall_healthy = False
+        logging.error(f"❌ Cosmos DB connection failed: {str(e)}")
+    
+    # Check Blob Storage connection and INGESTION_CONTAINER
+    try:
+        ingestion_container = os.environ.get("INGESTION_CONTAINER", "snippet-inputs")
+        storage_connection = os.environ.get("AzureWebJobsStorage")
+        
+        if not storage_connection:
+            raise Exception("AzureWebJobsStorage connection string not configured")
+        
+        async with BlobServiceClient.from_connection_string(storage_connection) as blob_client:
+            container_client = blob_client.get_container_client(ingestion_container)
+            # Test if container exists by checking its properties
+            await container_client.get_container_properties()
+            
+        health_status["services"]["blob_storage"] = {
+            "status": "healthy",
+            "ingestion_container": ingestion_container
+        }
+        logging.info(f"✅ Blob storage connection verified, container '{ingestion_container}' accessible")
+    except Exception as e:
+        health_status["services"]["blob_storage"] = {
+            "status": "unhealthy",
+            "error": str(e),
+            "ingestion_container": os.environ.get("INGESTION_CONTAINER", "snippet-inputs")
+        }
+        overall_healthy = False
+        logging.error(f"❌ Blob storage connection failed: {str(e)}")
+    
+    # Set overall status
+    if not overall_healthy:
+        health_status["status"] = "degraded"
+    
+    # Return appropriate status code
+    status_code = 200 if overall_healthy else 503
+    
     return func.HttpResponse(
-        body=json.dumps({"status": "I'm a teapot?!?"}),
+        body=json.dumps(health_status, indent=2),
         mimetype="application/json",
-        status_code=418
+        status_code=status_code
     )
