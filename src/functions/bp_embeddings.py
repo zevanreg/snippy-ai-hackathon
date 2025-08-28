@@ -177,7 +177,7 @@ async def http_start_embeddings(req: func.HttpRequest, client: df.DurableOrchest
     try:
         body = req.get_json()
         if not validate_input(body):
-            return func.HttpResponse(body=json.dumps({"error": "Invalid input"}), mimetype="application/json", status_code=400)
+            return func.HttpResponse(body=json.dumps({"error": "Invalid input"}), mimetype="application/json", status_code=500)
 
         function_name = "embeddings_orchestrator"
         # Start orchestration (async)
@@ -191,4 +191,43 @@ async def http_start_embeddings(req: func.HttpRequest, client: df.DurableOrchest
 
 def validate_input(input: dict) -> bool:
     """Validate the input JSON for the orchestration."""
-    return False
+    # Check if input is a dictionary
+    if not isinstance(input, dict):
+        return False
+    
+    # Check if projectId exists and is a string
+    project_id = input.get("projectId")
+    if not project_id or not isinstance(project_id, str):
+        return False
+    
+    # Check if snippets exists and is a list
+    snippets = input.get("snippets")
+    if not isinstance(snippets, list) or len(snippets) == 0:
+        return False
+    
+    # Validate each snippet
+    for snippet in snippets:
+        if not isinstance(snippet, dict):
+            return False
+        
+        # Check mandatory fields: name and code
+        name = snippet.get("name")
+        code = snippet.get("code")
+        
+        if not name or not isinstance(name, str):
+            return False
+        
+        if not code or not isinstance(code, str) or not code.strip():
+            return False
+        
+        # Optional fields: language and description - no validation needed
+        # They can be missing or present, but if present should be strings
+        language = snippet.get("language")
+        if language is not None and not isinstance(language, str):
+            return False
+        
+        description = snippet.get("description")
+        if description is not None and not isinstance(description, str):
+            return False
+    
+    return True

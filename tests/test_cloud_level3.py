@@ -402,9 +402,10 @@ async def test_upsert_document_minimal(monkeypatch):
     assert result["code"] == "print('hello')"
     assert result["embedding"] == [0.1, 0.2, 0.3]
     assert result["type"] == "code-snippet"
-    # Optional fields default to None
-    assert "language" in result and result["language"] is None
-    assert "description" in result and result["description"] is None
+    
+    # Optional fields should not be present when not provided
+    assert "language" not in result
+    assert "description" not in result
 
     # Also confirm what was sent to container (captured) is identical
     assert captured == result

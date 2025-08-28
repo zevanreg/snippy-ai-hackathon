@@ -158,6 +158,36 @@ async def upsert_document(name: str, project_id: str, code: str, embedding: list
     Raises:
         Exception: If document upsert fails
     """
+    try:
+        logger.info(f"Upserting document: name='{name}', project_id='{project_id}'")
+        
+        container = await get_container()
+        
+        # Create the document structure
+        document = {
+            "id": name,
+            "name": name,  # partition key
+            "projectId": project_id,
+            "code": code,
+            "type": "code-snippet",
+            "embedding": embedding
+        }
+        
+        # Add optional fields if provided
+        if language is not None:
+            document["language"] = language
+        if description is not None:
+            document["description"] = description
+            
+        # Upsert the document (create or update)
+        result = await container.upsert_item(document)
+        
+        logger.info(f"Successfully upserted document with id: {result.get('id')}")
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error upserting document '{name}': {str(e)}", exc_info=True)
+        raise
 
 # Retrieves all snippets from Cosmos DB
 # Returns a list of all snippet documents
